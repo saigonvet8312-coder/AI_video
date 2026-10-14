@@ -4,7 +4,7 @@ Biến kịch bản của bạn thành **video dọc 9:16** có giọng đọc t
 
 **Kịch bản → giọng đọc (OmniVoice) → hình ảnh động (HTML + Chromium) → ghép video (FFmpeg)**
 
-[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/saigonvet8312-coder/AI_auto_video/blob/main/AI_auto_video.ipynb)
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/saigonvet8312-coder/AI_video/blob/main/AI_auto_video.ipynb)
 
 ## Cách dùng
 
@@ -57,7 +57,7 @@ Cột **Ảnh nền** của từng cảnh có thể ghi **chủ thể** thủ c�
 ## Lưu trữ
 
 - **Dự án không được lưu lại** sau phiên Colab: làm xong thì tải kết quả về. Trong lúc làm, từng bước vẫn được nhớ: sửa một cảnh thì chỉ cảnh đó được tạo giọng/dựng hình lại.
-- **Chỉ thư viện giọng đọc được lưu trên Google Drive** (thư mục `AI_auto_video_voices`). Lưu một giọng ở tab ② (tên + file mẫu 3–15 giây + lời của mẫu nếu có), lần sau chọn trong danh sách.
+- **Chỉ thư viện giọng đọc được lưu trên Google Drive** (thư mục `AI_video_voices`). Lưu một giọng ở tab ② (tên + file mẫu 3–15 giây + lời của mẫu nếu có), lần sau chọn trong danh sách.
 
 ## Bảng kịch bản
 
