@@ -37,22 +37,13 @@ Kết quả tải về ở tab ④: `ket-qua.zip` (gồm `video.mp4`, `voice.mp3
 
 - **Video AI cho từng cảnh** (tab ③, mục "Video AI"): ảnh AI của mỗi cảnh (tạo từ kịch bản) được Stable Video Diffusion biến thành đoạn video chuyển động thật, rồi làm chậm, nội suy khung và chạy xuôi–ngược cho vừa độ dài giọng đọc. Áp dụng cho cảnh `hero`, `image`, `statement`, `quote`; cảnh số liệu/danh sách/so sánh/kết giữ nguyên đồ hoạ. Cách dùng: tạo ảnh AI → bấm **Tạo video AI** → ghép video ở tab ④. Cảnh video AI không có chữ trên hình nên phụ đề tự bật. Cần GPU, mỗi cảnh mất vài phút trên T4, và cần đồng ý điều khoản mô hình `stabilityai/stable-video-diffusion-img2vid-xt` trên Hugging Face rồi dán token vào ô "Hugging Face token". Đây là mô hình ảnh → video: nội dung theo ảnh, còn chuyển động do mô hình tự suy ra. Đổi mô hình bằng biến môi trường `AVG_VIDEO_MODEL`.
 
-## Phong cách ảnh AI riêng (JSON)
+## Ảnh AI theo kịch bản
 
-Ảnh AI luôn được tạo theo **JSON phong cách do bạn cung cấp cho từng video** (tab ③ → “Phong cách ảnh AI”, dán JSON hoặc tải file `.json`). Mẫu nằm ở `examples/style-cosmic-tech-brain.json`.
+Ảnh AI dùng một **phong cách mặc định cố định** là *cosmic tech brain glow* (khai báo ở `DEFAULT_STYLE` trong `app/media.py`; muốn đổi phong cách thì sửa chỗ đó). Giao diện không còn ô nhập JSON.
 
-| Trường | Ý nghĩa |
-|---|---|
-| `style_name` | Tên phong cách |
-| `full_prompt_string` | **Bắt buộc.** Mô tả phong cách chung |
-| `composition` | Bố cục |
-| `lighting` | Ánh sáng |
-| `color_palette` | Bảng màu |
-| `negative_prompt` | Những thứ cần tránh |
+Tick **“Tự tạo ảnh AI cho MỌI cảnh”** (tab ③) là tool tự viết mô tả chủ thể từ lời đọc (Claude nếu bạn nhập API key, nếu không thì dịch tự động), rồi tạo ảnh theo phong cách mặc định. Bấm “Điền mô tả ảnh vào bảng” để xem/sửa mô tả trước khi tạo ảnh; ô nào bạn tự điền thì được giữ nguyên.
 
-**Có JSON là tự tạo ảnh cho mọi cảnh** (trừ cảnh kết): tool tự viết mô tả chủ thể từ lời đọc (Claude nếu bạn nhập API key, nếu không thì dịch tự động), rồi tạo ảnh theo JSON. Bấm “Điền mô tả ảnh vào bảng” để xem/sửa mô tả trước khi tạo ảnh; ô nào bạn tự điền thì được giữ nguyên.
-
-Cột **Ảnh nền** của từng cảnh có thể ghi **chủ thể** thủ công (ví dụ `a robot hand holding a glowing smartphone`); phong cách lấy từ JSON. Đổi JSON thì ảnh được tạo mới, còn đổi chủ đề giao diện thì ảnh giữ nguyên. Đạo diễn AI cũng đọc JSON này để viết mô tả chủ thể cho hợp phong cách.
+Cột **Ảnh nền** của từng cảnh có thể ghi **chủ thể** thủ công (ví dụ `a robot hand holding a glowing smartphone`); phần phong cách được thêm tự động. Đổi phong cách thì ảnh được tạo mới, còn đổi chủ đề giao diện thì ảnh giữ nguyên.
 
 ## Lưu trữ
 
