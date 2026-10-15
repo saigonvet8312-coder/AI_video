@@ -24,7 +24,6 @@ SVD_MODEL = os.environ.get("AVG_VIDEO_MODEL", "stabilityai/stable-video-diffusio
 SIZE = (576, 1024)   # rộng x cao, khớp với ảnh AI
 SVD_FPS = 7
 STEPS = 20
-TOKEN = {"hf": ""}   # token Hugging Face (nhập ở giao diện, không lưu vào dự án)
 
 GATE_HELP = (
     "Mô hình video SVD cần bạn đồng ý điều khoản trên Hugging Face:\n"
@@ -63,7 +62,7 @@ def _colab_secret(name: str) -> str:
         return ""
 
 
-def _load(log):
+def _load(log, hf_token: str = ""):
     import torch
 
     if not torch.cuda.is_available():
@@ -71,7 +70,7 @@ def _load(log):
     aiimage._ensure_diffusers(log)
     from diffusers import StableVideoDiffusionPipeline
 
-    token = TOKEN["hf"].strip() or os.environ.get("HF_TOKEN") or _colab_secret("HF_TOKEN") or None
+    token = (hf_token or "").strip() or os.environ.get("HF_TOKEN") or _colab_secret("HF_TOKEN") or None
     log(f"⏳ Đang tải mô hình video {SVD_MODEL} (nặng, lần đầu mất vài phút)...")
     try:
         pipe = StableVideoDiffusionPipeline.from_pretrained(
@@ -134,7 +133,7 @@ def generate_all(pdir: Path, scenes: list[dict], st: dict, force: bool = False, 
 
     import torch
 
-    pipe = _load(log)
+    pipe = _load(log, st.get("_hf_token", ""))
     made = 0
     try:
         for k, (i, img, out) in enumerate(targets, 1):

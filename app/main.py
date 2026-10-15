@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import secrets
 from pathlib import Path
 
 import gradio as gr
@@ -13,7 +14,6 @@ from .project import UserError
 from .templates import THEMES
 
 # Khoá API chỉ giữ trong bộ nhớ phiên này, không bao giờ lưu vào dự án.
-RUNTIME = {"api_key": "", "model": director.DEFAULT_MODEL}
 
 SETTING_KEYS = [
     "brand", "tagline", "url", "theme", "custom_colors", "accent_from", "accent_to", "quality",
@@ -42,7 +42,14 @@ def merge_settings(vals) -> dict:
     return st
 
 
-def prepare(name: str, rows, vals, save: bool = True, auto: bool = False, log=print):
+def _sec(api_key="", model="", hf_token=""):
+    """Khoá bí mật của MỘT yêu cầu (không lưu vào dự án, không dùng biến toàn cục nên không lẫn giữa các phiên)."""
+    return {"api_key": (api_key or "").strip(), "model": (model or "").strip() or director.DEFAULT_MODEL,
+            "hf_token": (hf_token or "").strip()}
+
+
+def prepare(name: str, rows, vals, save: bool = True, auto: bool = False, log=print, keys: dict | None = None):
+    sec = keys or _sec()
     st = merge_settings(vals)
     scenes = K.complete_all(K.rows_to_scenes(rows))
     K.require_valid(scenes)
@@ -55,23 +62,20 @@ def prepare(name: str, rows, vals, save: bool = True, auto: bool = False, log=pr
     else:
         tts.clear_reference(pdir)
     if auto:
-        autobg.fill(pdir, scenes, st, RUNTIME["api_key"], RUNTIME["model"], log=log)
+        autobg.fill(pdir, scenes, st, sec["api_key"], sec["model"], log=log)
     if save:
         P.save_project(name, scenes, st)
+    st["_hf_token"] = sec["hf_token"]  # chỉ dùng trong yêu cầu này, đặt SAU khi lưu nên không ghi ra file dự án
     return pdir, scenes, st
 
 
 # ── Dự án ─────────────────────────────────────────────────────────────────────
-def _gallery(name: str):
-    return [(str(p), p.name) for p in media.list_media(P.project_dir(name))]
-
-
 def open_project(name):
     data = P.load_project(name)
     st = data["settings"]
     rows = K.scenes_to_rows(data["scenes"])
     vals = [(st[k] or voices.NO_VOICE) if k == "voice" else st[k] for k in SETTING_KEYS]
-    return [rows] + vals + [f"📂 Đã mở dự án **{P.slugify(name)}** (dự án chỉ lưu trong phiên Colab này — nhớ tải kết quả về).", _gallery(name)]
+    return [rows] + vals + [f"📂 Đã mở dự án **{P.slugify(name)}** (dự án chỉ lưu trong phiên Colab này — nhớ tải kết quả về)."]
 
 
 def save_project(name, rows, *vals):
@@ -140,13 +144,6 @@ def voice_delete(name):
     return gr.update(choices=voices.names(), value=voices.NO_VOICE), f"🗑️ Đã xoá giọng **{name}**.", None
 
 
-def media_handler(name, files):
-    if not files:
-        raise gr.Error("Hãy chọn ảnh trước.")
-    saved = media.save_uploads(P.project_dir(name), files)
-    return _gallery(name), None, f"🖼️ Đã thêm {len(saved)} ảnh: " + ", ".join(f"`{n}`" for n in saved)
-
-
 def _job_ai(pdir, scenes, st, force, log):
     aiimage.generate_all(pdir, scenes, st, force=force, log=log)
 
@@ -155,9 +152,9 @@ def _job_video(pdir, scenes, st, force, log):
     aivideo.generate_all(pdir, scenes, st, force=force, log=log)
 
 
-def video_handler(name, force, rows, *vals):
+def video_handler(name, api_key, model, hf_token, force, rows, *vals):
     try:
-        pdir, scenes, st = prepare(name, rows, vals, auto=True)
+        pdir, scenes, st = prepare(name, rows, vals, auto=True, keys=_sec(api_key, model, hf_token))
         if not st["video_ai"]:
             raise UserError("Hãy tick “Bật video AI” trước.")
     except UserError as e:
@@ -165,10 +162,6 @@ def video_handler(name, force, rows, *vals):
         return
     for log, _res, _err in run_job(_job_video, pdir, scenes, st, bool(force)):
         yield log
-
-
-def set_hf_token(token):
-    aivideo.TOKEN["hf"] = (token or "").strip()
 
 
 def _ai_gallery(pdir, scenes, st):
@@ -183,9 +176,9 @@ def _ai_gallery(pdir, scenes, st):
     return items
 
 
-def ai_handler(name, force, rows, *vals):
+def ai_handler(name, api_key, model, force, rows, *vals):
     try:
-        pdir, scenes, st = prepare(name, rows, vals, auto=True)
+        pdir, scenes, st = prepare(name, rows, vals, auto=True, keys=_sec(api_key, model))
     except UserError as e:
         yield f"⚠️ {e}", gr.update()
         return
@@ -194,18 +187,13 @@ def ai_handler(name, force, rows, *vals):
     yield log, _ai_gallery(pdir, scenes, st)
 
 
-def fill_bg_handler(name, rows, *vals):
+def fill_bg_handler(name, api_key, model, rows, *vals):
     """Điền sẵn mô tả ảnh vào bảng để bạn xem và sửa trước khi tạo ảnh."""
     try:
-        pdir, scenes, st = prepare(name, rows, vals, save=False, auto=True)
+        pdir, scenes, st = prepare(name, rows, vals, save=False, auto=True, keys=_sec(api_key, model))
     except UserError as e:
         raise gr.Error(str(e))
     return K.scenes_to_rows(scenes), "🪄 Đã điền mô tả ảnh vào cột “Ảnh nền”. Bạn có thể sửa rồi bấm “Tạo ảnh AI”."
-
-
-def set_runtime(api_key, model):
-    RUNTIME["api_key"] = (api_key or "").strip()
-    RUNTIME["model"] = (model or "").strip() or director.DEFAULT_MODEL
 
 
 # ── ② Giọng đọc ───────────────────────────────────────────────────────────────
@@ -250,9 +238,9 @@ def _job_render(pdir, scenes, st, force, log):
     render.render_scenes(pdir, scenes, st, durations or None, force=force, log=log)
 
 
-def render_handler(name, force, rows, *vals):
+def render_handler(name, api_key, model, force, rows, *vals):
     try:
-        pdir, scenes, st = prepare(name, rows, vals, auto=True)
+        pdir, scenes, st = prepare(name, rows, vals, auto=True, keys=_sec(api_key, model))
     except UserError as e:
         yield f"⚠️ {e}"
         return
@@ -264,9 +252,9 @@ def _job_preview(pdir, scenes, st, i, log):
     return assemble.preview_scene(pdir, i, scenes, st, log=log)
 
 
-def preview_handler(name, idx, rows, *vals):
+def preview_handler(name, api_key, model, idx, rows, *vals):
     try:
-        pdir, scenes, st = prepare(name, rows, vals, save=False, auto=True)
+        pdir, scenes, st = prepare(name, rows, vals, save=False, auto=True, keys=_sec(api_key, model))
     except UserError as e:
         yield f"⚠️ {e}", None
         return
@@ -303,9 +291,9 @@ def _stash_music(pdir, st, bgm_file):
         raise UserError("Bạn chọn “Dùng file nhạc của tôi” nhưng chưa tải file nhạc lên (tab ④).")
 
 
-def assemble_handler(name, bgm_file, rows, *vals):
+def assemble_handler(name, api_key, model, hf_token, bgm_file, rows, *vals):
     try:
-        pdir, scenes, st = prepare(name, rows, vals, auto=True)
+        pdir, scenes, st = prepare(name, rows, vals, auto=True, keys=_sec(api_key, model, hf_token))
         _stash_music(pdir, st, bgm_file)
     except UserError as e:
         yield f"⚠️ {e}", None, None
@@ -313,9 +301,9 @@ def assemble_handler(name, bgm_file, rows, *vals):
     yield from _stream_result(_job_assemble, pdir, scenes, st)
 
 
-def all_handler(name, bgm_file, rows, *vals):
+def all_handler(name, api_key, model, hf_token, bgm_file, rows, *vals):
     try:
-        pdir, scenes, st = prepare(name, rows, vals, auto=True)
+        pdir, scenes, st = prepare(name, rows, vals, auto=True, keys=_sec(api_key, model, hf_token))
         _stash_music(pdir, st, bgm_file)
     except UserError as e:
         yield f"⚠️ {e}", None, None
@@ -425,10 +413,7 @@ def build_ui() -> gr.Blocks:
                         f"Phong cách ảnh đã đặt sẵn: **{media.DEFAULT_STYLE['style_name']}**. "
                         "Mô tả ở cột *Ảnh nền* của từng cảnh chỉ cần nói về **chủ thể**."
                     )
-                with gr.Accordion("🖼️ Thư viện ảnh nền & ảnh AI", open=False):
-                    media_files = gr.File(file_count="multiple", file_types=["image"], label="Tải ảnh lên (dùng tên file trong cột Ảnh nền)")
-                    media_btn = gr.Button("📥 Thêm vào thư viện")
-                    gallery = gr.Gallery(label="Thư viện ảnh của dự án", columns=6, height=220, interactive=False)
+                with gr.Accordion("🖼️ Tạo ảnh AI theo kịch bản", open=False):
                     with gr.Row():
                         fill_bg_btn = gr.Button("🪄 Điền mô tả ảnh vào bảng (để xem/sửa)")
                         force_ai = gr.Checkbox(value=False, label="Tạo lại ảnh AI từ đầu")
@@ -486,46 +471,52 @@ def build_ui() -> gr.Blocks:
                     bgm, bgm_volume, sfx, caps, video_ai, video_frames, video_motion]
         base = [project, table] + settings  # đầu vào chung
 
-        demo.load(open_project, [project], [table] + settings + [status, gallery])
-        open_btn.click(open_project, [project], [table] + settings + [status, gallery])
+        demo.load(open_project, [project], [table] + settings + [status])
+        open_btn.click(open_project, [project], [table] + settings + [status])
         save_btn.click(save_project, base, status)
 
         director_btn.click(director_handler, [table, api_key, dir_model, dir_topic, dir_ai_img, brand], [table, theme, status])
         voice.change(voice_preview, [voice], [voice_audio])
         voice_save_btn.click(voice_save, [new_name, new_audio, new_text], [voice, voice_info, new_audio, new_text, voice_audio])
         voice_del_btn.click(voice_delete, [voice], [voice, voice_info, voice_audio])
-        media_btn.click(media_handler, [project, media_files], [gallery, media_files, status])
-        video_btn.click(video_handler, [project, force_video, table] + settings, [render_log])
-        hf_token.change(set_hf_token, [hf_token], None)
-        ai_btn.click(ai_handler, [project, force_ai, table] + settings, [render_log, ai_gallery])
-        fill_bg_btn.click(fill_bg_handler, [project, table] + settings, [table, status])
-        api_key.change(set_runtime, [api_key, dir_model], None)
-        dir_model.change(set_runtime, [api_key, dir_model], None)
+        video_btn.click(video_handler, [project, api_key, dir_model, hf_token, force_video, table] + settings, [render_log])
+        ai_btn.click(ai_handler, [project, api_key, dir_model, force_ai, table] + settings, [render_log, ai_gallery])
+        fill_bg_btn.click(fill_bg_handler, [project, api_key, dir_model, table] + settings, [table, status])
         split_btn.click(split_handler, [script_text, add_outro, brand], table)
         fill_btn.click(fill_handler, [table], table)
 
         tts_btn.click(tts_handler, [project, force_tts, table] + settings, tts_log)
         listen_btn.click(listen_handler, [project, listen_idx, table] + settings, listen_audio)
 
-        render_btn.click(render_handler, [project, force_render, table] + settings, render_log)
-        preview_btn.click(preview_handler, [project, preview_idx, table] + settings, [render_log, preview_video])
+        render_btn.click(render_handler, [project, api_key, dir_model, force_render, table] + settings, render_log)
+        preview_btn.click(preview_handler, [project, api_key, dir_model, preview_idx, table] + settings, [render_log, preview_video])
 
-        assemble_btn.click(assemble_handler, [project, bgm_file, table] + settings, [out_log, out_video, out_files])
-        all_btn.click(all_handler, [project, bgm_file, table] + settings, [out_log, out_video, out_files])
+        assemble_btn.click(assemble_handler, [project, api_key, dir_model, hf_token, bgm_file, table] + settings, [out_log, out_video, out_files])
+        all_btn.click(all_handler, [project, api_key, dir_model, hf_token, bgm_file, table] + settings, [out_log, out_video, out_files])
     return demo
 
 
 def main() -> None:
     P.ROOT.mkdir(parents=True, exist_ok=True)
     voices.ROOT.mkdir(parents=True, exist_ok=True)
-    allowed = [str(P.ROOT), str(voices.ROOT)] + [p for p in ("/content",) if Path(p).exists()]
+    # Chỉ cho phép phục vụ file trong thư mục dự án và thư viện giọng (KHÔNG mở cả /content hay Google Drive).
+    allowed = [str(P.ROOT), str(voices.ROOT)]
+    share = os.environ.get("AVG_SHARE", "0") == "1"
+    kwargs = {}
+    if share:  # link công khai thì bắt buộc có mật khẩu
+        user = os.environ.get("AVG_USER", "admin")
+        pw = os.environ.get("AVG_PASS") or secrets.token_urlsafe(9)
+        kwargs["auth"] = (user, pw)
+        print(f"🔐 Đăng nhập giao diện: tài khoản `{user}` · mật khẩu `{pw}`", flush=True)
     demo = build_ui()
     demo.queue(default_concurrency_limit=1)
     demo.launch(
-        share=os.environ.get("AVG_SHARE", "1") == "1",
-        server_name="0.0.0.0",
+        share=share,
+        server_name="127.0.0.1",
+        server_port=int(os.environ.get("AVG_PORT", "7860")),
         allowed_paths=allowed,
         show_error=True,
+        **kwargs,
     )
 
 
