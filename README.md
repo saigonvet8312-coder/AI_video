@@ -37,6 +37,13 @@ Kết quả tải về ở tab ④: `ket-qua.zip` (gồm `video.mp4`, `voice.mp3
 
 - **Video AI cho từng cảnh** (tab ③, mục "Video AI"): ảnh AI của mỗi cảnh (tạo từ kịch bản) được Stable Video Diffusion biến thành đoạn video chuyển động thật, rồi làm chậm, nội suy khung và chạy xuôi–ngược cho vừa độ dài giọng đọc. Áp dụng cho cảnh `hero`, `image`, `statement`, `quote`; cảnh số liệu/danh sách/so sánh/kết giữ nguyên đồ hoạ. Cách dùng: tạo ảnh AI → bấm **Tạo video AI** → ghép video ở tab ④. Cảnh video AI không có chữ trên hình nên phụ đề tự bật. Cần GPU, mỗi cảnh mất vài phút trên T4, và cần đồng ý điều khoản mô hình `stabilityai/stable-video-diffusion-img2vid-xt` trên Hugging Face rồi dán token vào ô "Hugging Face token". Đây là mô hình ảnh → video: nội dung theo ảnh, còn chuyển động do mô hình tự suy ra. Đổi mô hình bằng biến môi trường `AVG_VIDEO_MODEL`.
 
+## Bảo mật
+
+- **Giao diện riêng tư mặc định**: máy chủ chỉ lắng nghe `127.0.0.1` và được mở qua cổng riêng của Colab (`AVG_SHARE=0`). Link công khai chỉ bật khi bạn tick `SHARE_PUBLIC_LINK` ở Phần 3 (hoặc đặt `AVG_SHARE=1`); khi đó giao diện **bắt buộc có mật khẩu** (`AVG_USER`/`AVG_PASS`, không đặt thì mật khẩu ngẫu nhiên được in ra).
+- **Chỉ phục vụ file trong thư mục dự án và thư viện giọng** (`allowed_paths`), không mở cả `/content` hay Google Drive.
+- **API key Anthropic và token Hugging Face** được truyền theo từng lần bấm nút, không lưu vào dự án và không dùng biến toàn cục chung giữa các phiên.
+- **Phần 2 không xoá thư mục mã**: khi đổi repo, thư mục cũ được chuyển sang `/content/AI_video.bak-<thời gian>`.
+
 ## Ảnh AI theo kịch bản
 
 Ảnh AI dùng một **phong cách mặc định cố định** là *cosmic tech brain glow* (khai báo ở `DEFAULT_STYLE` trong `app/media.py`; muốn đổi phong cách thì sửa chỗ đó). Giao diện không còn ô nhập JSON.
