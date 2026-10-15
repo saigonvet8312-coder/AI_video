@@ -41,29 +41,45 @@ NEGATIVE_BASE = "text, letters, watermark, logo, signature, blurry, low quality,
 STYLE_FIELDS = ("full_prompt_string", "composition", "lighting", "color_palette", "negative_prompt")
 
 
-def parse_style(text: str | None) -> dict | None:
-    """Đọc JSON phong cách ảnh do người dùng cung cấp. Trả None nếu để trống."""
+DEFAULT_STYLE = {
+    "style_name": "cosmic tech brain glow",
+    "full_prompt_string": (
+        "futuristic digital art, glowing brain or neural motif as central subject, circuit-board and neural network "
+        "line patterns, cosmic sci-fi atmosphere, hyper-detailed 3D render quality, tech-mysticism fusion aesthetic, "
+        "ultra sharp digital illustration, particle and spark accents, ethereal energy emanating from the subject"),
+    "composition": (
+        "centered symmetrical composition, medium to close-up framing, glowing subject as singular focal point, "
+        "circuit lines or energy trails radiating outward, large dark negative space surrounding the subject"),
+    "lighting": (
+        "dramatic glow and bloom lighting, strong central light source emanating from the subject, neon-like "
+        "luminescence, high contrast between dark background and glowing highlights, soft rim light"),
+    "color_palette": (
+        "deep black or navy background, vibrant neon accents shifting between electric blue, violet-purple, and "
+        "warm orange-gold across pieces, high saturation glow, occasional teal or red variant"),
+    "negative_prompt": "text, logo, watermark, cluttered typography, busy background elements unrelated to the central subject",
+}
+
+
+def parse_style(text: str | None = None) -> dict:
+    """Phong cách ảnh AI. Mặc định dùng DEFAULT_STYLE; chỉ khi dự án cũ còn lưu JSON riêng thì dùng JSON đó."""
     t = (text or "").strip()
     if not t:
-        return None
+        return dict(DEFAULT_STYLE)
     try:
         data = json.loads(t)
-    except json.JSONDecodeError as e:
-        raise UserError(f"JSON phong cách chưa hợp lệ: {e.msg} (dòng {e.lineno}, cột {e.colno}).")
+    except json.JSONDecodeError:
+        return dict(DEFAULT_STYLE)
     if isinstance(data, list) and data and isinstance(data[0], dict):
         data = data[0]
     if not isinstance(data, dict) or not str(data.get("full_prompt_string", "")).strip():
-        raise UserError("JSON phong cách cần có trường \"full_prompt_string\".")
+        return dict(DEFAULT_STYLE)
     style = {k: str(data.get(k, "") or "").strip() for k in STYLE_FIELDS}
     style["style_name"] = str(data.get("style_name", "") or "").strip() or "phong cách riêng"
     return style
 
 
 def require_style(st: dict) -> dict:
-    style = parse_style(st.get("style_json"))
-    if style is None:
-        raise UserError("Chưa có JSON phong cách ảnh. Hãy dán JSON ở tab ③ → “Phong cách ảnh AI” trước khi tạo ảnh AI.")
-    return style
+    return parse_style(st.get("style_json"))
 
 
 def ai_prompts(subject: str, style: dict) -> tuple[str, str, str]:

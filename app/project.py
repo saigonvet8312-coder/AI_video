@@ -14,7 +14,6 @@ DEFAULT_SETTINGS = {
     "brand": "Kênh của tôi",
     "tagline": "Nội dung mới mỗi ngày",
     "url": "",
-    "style_json": "",
     "auto_images": True,
     "theme": "aurora",
     "custom_colors": False,

@@ -17,7 +17,7 @@ RUNTIME = {"api_key": "", "model": director.DEFAULT_MODEL}
 
 SETTING_KEYS = [
     "brand", "tagline", "url", "theme", "custom_colors", "accent_from", "accent_to", "quality",
-    "continuous", "speed", "seed", "normalize", "voice", "style_json", "auto_images",
+    "continuous", "speed", "seed", "normalize", "voice", "auto_images",
     "bgm", "bgm_volume", "sfx", "captions", "video_ai", "video_frames", "video_motion",
 ]
 
@@ -31,7 +31,6 @@ def merge_settings(vals) -> dict:
     st["voice"] = "" if st["voice"] in (None, voices.NO_VOICE) else st["voice"]
     st["ref_text"] = ""
     st["custom_colors"] = bool(st["custom_colors"])
-    st["style_json"] = st["style_json"] or ""
     st["auto_images"] = bool(st["auto_images"])
     st["bgm"] = st["bgm"] if st["bgm"] in dict(audiofx.BGM_CHOICES).values() else "off"
     st["bgm_volume"] = min(max(float(st["bgm_volume"] or 0.0), 0.0), 0.5)
@@ -95,12 +94,10 @@ def fill_handler(rows):
     return K.scenes_to_rows(K.complete_all(K.rows_to_scenes(rows)))
 
 
-def director_handler(rows, api_key, model, topic, use_ai, brand, style_json):
+def director_handler(rows, api_key, model, topic, use_ai, brand):
     scenes = K.rows_to_scenes(rows)
     try:
-        style = media.parse_style(style_json)
-        if use_ai and style is None:
-            raise UserError("Hãy dán JSON phong cách ảnh ở tab ③ trước (hoặc bỏ tick “Để AI mô tả ảnh nền”).")
+        style = media.parse_style()
         theme, designed = director.direct(
             scenes, api_key, model or director.DEFAULT_MODEL, topic or "", (brand or "").strip(), bool(use_ai), style)
     except UserError as e:
@@ -141,24 +138,6 @@ def voice_delete(name):
     except UserError as e:
         raise gr.Error(str(e))
     return gr.update(choices=voices.names(), value=voices.NO_VOICE), f"🗑️ Đã xoá giọng **{name}**.", None
-
-
-def style_check(text):
-    try:
-        style = media.parse_style(text)
-    except UserError as e:
-        return f"⚠️ {e}"
-    if style is None:
-        return "ℹ️ Chưa có JSON phong cách."
-    filled = [k for k in media.STYLE_FIELDS if style[k]]
-    return f"✅ Hợp lệ — **{style['style_name']}** · các trường có dữ liệu: {', '.join(filled)}"
-
-
-def style_load(file):
-    if not file:
-        return gr.update()
-    path = getattr(file, "name", file)
-    return Path(path).read_text(encoding="utf-8")
 
 
 def media_handler(name, files):
@@ -221,8 +200,6 @@ def fill_bg_handler(name, rows, *vals):
         pdir, scenes, st = prepare(name, rows, vals, save=False, auto=True)
     except UserError as e:
         raise gr.Error(str(e))
-    if media.parse_style(st["style_json"]) is None:
-        raise gr.Error("Hãy dán JSON phong cách ở trên trước.")
     return K.scenes_to_rows(scenes), "🪄 Đã điền mô tả ảnh vào cột “Ảnh nền”. Bạn có thể sửa rồi bấm “Tạo ảnh AI”."
 
 
@@ -441,22 +418,12 @@ def build_ui() -> gr.Blocks:
                     )
                 continuous = gr.Checkbox(value=d["continuous"],
                                          label="Nền chuyển động suốt cảnh (đẹp hơn nhưng dựng lâu hơn)")
-                with gr.Accordion("🎨 Phong cách ảnh AI của bạn (JSON) — bắt buộc khi dùng ảnh AI", open=True):
-                    style_json = gr.Textbox(
-                        lines=10, label="Dán JSON phong cách (mỗi video một JSON)",
-                        placeholder='{"style_name": "...", "full_prompt_string": "...", "composition": "...", '
-                                    '"lighting": "...", "color_palette": "...", "negative_prompt": "..."}',
-                    )
-                    with gr.Row():
-                        style_file = gr.File(file_types=[".json"], label="…hoặc tải file .json")
-                        style_btn = gr.Button("✔ Kiểm tra JSON")
+                with gr.Accordion("🎨 Ảnh AI", open=True):
                     auto_images = gr.Checkbox(value=d["auto_images"],
-                                              label="Tự tạo ảnh AI cho MỌI cảnh theo JSON này (mô tả chủ thể tự viết từ kịch bản)")
-                    style_info = gr.Markdown()
+                                              label="Tự tạo ảnh AI cho MỌI cảnh (mô tả chủ thể tự viết từ kịch bản)")
                     gr.Markdown(
-                        "Các trường: `style_name`, **`full_prompt_string`** (bắt buộc), `composition`, `lighting`, "
-                        "`color_palette`, `negative_prompt`. Mô tả ở cột *Ảnh nền* của từng cảnh chỉ cần nói về **chủ thể**, "
-                        "phần còn lại lấy từ JSON này."
+                        f"Phong cách ảnh đã đặt sẵn: **{media.DEFAULT_STYLE['style_name']}**. "
+                        "Mô tả ở cột *Ảnh nền* của từng cảnh chỉ cần nói về **chủ thể**."
                     )
                 with gr.Accordion("🖼️ Thư viện ảnh nền & ảnh AI", open=False):
                     media_files = gr.File(file_count="multiple", file_types=["image"], label="Tải ảnh lên (dùng tên file trong cột Ảnh nền)")
@@ -515,7 +482,7 @@ def build_ui() -> gr.Blocks:
                 out_files = gr.File(label="Tải về: ket-qua.zip (gồm tất cả) · video.mp4 · voice.mp3 · script.txt · captions.srt",
                                     file_count="multiple", interactive=False)
 
-        settings = [brand, tagline, url, theme, custom_colors, accent_from, accent_to, quality, continuous, speed, seed, normalize, voice, style_json, auto_images,
+        settings = [brand, tagline, url, theme, custom_colors, accent_from, accent_to, quality, continuous, speed, seed, normalize, voice, auto_images,
                     bgm, bgm_volume, sfx, caps, video_ai, video_frames, video_motion]
         base = [project, table] + settings  # đầu vào chung
 
@@ -523,12 +490,10 @@ def build_ui() -> gr.Blocks:
         open_btn.click(open_project, [project], [table] + settings + [status, gallery])
         save_btn.click(save_project, base, status)
 
-        director_btn.click(director_handler, [table, api_key, dir_model, dir_topic, dir_ai_img, brand, style_json], [table, theme, status])
+        director_btn.click(director_handler, [table, api_key, dir_model, dir_topic, dir_ai_img, brand], [table, theme, status])
         voice.change(voice_preview, [voice], [voice_audio])
         voice_save_btn.click(voice_save, [new_name, new_audio, new_text], [voice, voice_info, new_audio, new_text, voice_audio])
         voice_del_btn.click(voice_delete, [voice], [voice, voice_info, voice_audio])
-        style_btn.click(style_check, [style_json], style_info)
-        style_file.change(style_load, [style_file], [style_json])
         media_btn.click(media_handler, [project, media_files], [gallery, media_files, status])
         video_btn.click(video_handler, [project, force_video, table] + settings, [render_log])
         hf_token.change(set_hf_token, [hf_token], None)

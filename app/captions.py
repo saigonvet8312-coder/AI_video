@@ -14,7 +14,30 @@ import numpy as np
 from .tts import SR
 
 CAPTION_CHOICES = [("Tắt", "off"), ("Phía dưới", "bottom"), ("Giữa khung", "middle")]
-FONT = "Noto Sans"
+# Ưu tiên theo thứ tự: (tên font trong fontconfig, cờ Bold của ASS). Be Vietnam Pro thiết kế riêng cho dấu tiếng Việt.
+FONT_CHOICES = [
+    ("Be Vietnam Pro ExtraBold", 0), ("Be Vietnam Pro", -1),
+    ("Montserrat ExtraBold", 0), ("Montserrat", -1),
+    ("Noto Sans", -1), ("DejaVu Sans", -1), ("Liberation Sans", -1),
+]
+_FONT_CACHE: list = []
+
+
+def pick_font(installed: str | None = None) -> tuple[str, int]:
+    """Chọn font đầu tiên trong FONT_CHOICES mà máy có (hỏi fc-list một lần rồi nhớ)."""
+    if installed is None:
+        if _FONT_CACHE:
+            return _FONT_CACHE[0]
+        try:
+            installed = subprocess.run(["fc-list", ":", "family"], capture_output=True, text=True).stdout
+        except OSError:
+            installed = ""
+    names = {n.strip().lower() for line in installed.splitlines() for n in line.split(",")}
+    for name, bold in FONT_CHOICES:
+        if name.lower() in names:
+            _FONT_CACHE[:] = [(name, bold)]
+            return name, bold
+    return FONT_CHOICES[4][0], FONT_CHOICES[4][1]
 MAX_CHARS = 20      # số ký tự tối đa mỗi cụm hiện trên màn hình
 MAX_TOKENS = 6
 _END = re.compile(r"[.!?…]$")
@@ -98,6 +121,7 @@ def _escape(s: str) -> str:
 def build_ass(scenes: list[dict], starts: list[float], windows: list[tuple[float, float]],
               size: tuple[int, int], position: str, accent: str) -> str:
     w, h = size
+    font, bold = pick_font()
     fs = round(w * 0.07)
     outline = max(2, round(w * 0.0065))
     if position == "middle":
@@ -111,7 +135,7 @@ def build_ass(scenes: list[dict], starts: list[float], windows: list[tuple[float
         "Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, "
         "Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, "
         "MarginL, MarginR, MarginV, Encoding\n"
-        f"Style: Cap,{FONT},{fs},{_bgr(accent)},&H00FFFFFF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,"
+        f"Style: Cap,{font},{fs},{_bgr(accent)},&H00FFFFFF,&H00000000,&H80000000,{bold},0,0,0,100,100,0,0,1,"
         f"{outline},{max(1, outline // 2)},{align},{round(w * 0.05)},{round(w * 0.05)},{margin_v},1\n\n"
         "[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n"
     )
