@@ -44,13 +44,15 @@ Kết quả tải về ở tab ④: `ket-qua.zip` (gồm `video.mp4`, `voice.mp3
 - **API key Anthropic và token Hugging Face** được truyền theo từng lần bấm nút, không lưu vào dự án và không dùng biến toàn cục chung giữa các phiên.
 - **Phần 2 không xoá thư mục mã**: khi đổi repo, thư mục cũ được chuyển sang `/content/AI_video.bak-<thời gian>`.
 
-## Ảnh AI theo kịch bản
+## Ảnh và video theo kịch bản (tab ③)
 
-Ảnh AI dùng một **phong cách mặc định cố định** là *cosmic tech brain glow* (khai báo ở `DEFAULT_STYLE` trong `app/media.py`; muốn đổi phong cách thì sửa chỗ đó). Giao diện không còn ô nhập JSON.
+Tab ③ đi theo ba bước:
 
-Tick **“Tự tạo ảnh AI cho MỌI cảnh”** (tab ③) là tool tự viết mô tả chủ thể từ lời đọc (Claude nếu bạn nhập API key, nếu không thì dịch tự động), rồi tạo ảnh theo phong cách mặc định. Bấm “Điền mô tả ảnh vào bảng” để xem/sửa mô tả trước khi tạo ảnh; ô nào bạn tự điền thì được giữ nguyên.
+1. **Tạo prompt cho từng cảnh**: bấm “Tạo prompt từ nội dung kịch bản”, tool đọc lời đọc của từng cảnh (đã tách ở bước ①) và viết prompt chủ thể. Bảng prompt cho phép sửa trực tiếp (ghi ngược vào cột “Ảnh nền” của bảng cảnh). Tick “Viết lại cả prompt đã có” để viết lại từ đầu; link ảnh bạn tự nhập được giữ nguyên.
+2. **Tạo ảnh từ prompt**: ảnh được tạo theo phong cách mặc định *cosmic tech brain glow* (khai báo ở `DEFAULT_STYLE` trong `app/media.py`).
+3. **Biến ảnh thành video chuyển động** (tuỳ chọn): xem mục “Video AI cho từng cảnh” ở trên. Có nút xem video của từng cảnh.
 
-Cột **Ảnh nền** của từng cảnh có thể ghi **chủ thể** thủ công (ví dụ `a robot hand holding a glowing smartphone`); phần phong cách được thêm tự động. Đổi phong cách thì ảnh được tạo mới, còn đổi chủ đề giao diện thì ảnh giữ nguyên.
+Prompt tốt hơn khi nhập Anthropic API key (Claude đọc cả kịch bản để giữ mạch hình ảnh); không có key thì tool dịch tự động từ câu đầu của cảnh.
 
 ## Lưu trữ
 
