@@ -313,12 +313,24 @@ def all_handler(name, api_key, model, hf_token, bgm_file, rows, *vals):
 
 
 # ── Giao diện ─────────────────────────────────────────────────────────────────
+def _blocks():
+    """Tạo khung giao diện; nếu theme/head không tương thích với phiên bản Gradio đang chạy thì tự lùi về cấu hình đơn giản."""
+    try:
+        theme = ui_theme.make_theme()
+    except Exception:  # noqa: BLE001
+        theme = gr.themes.Soft()
+    try:
+        return gr.Blocks(title="AI Auto Video", theme=theme, css=ui_theme.CSS, head=ui_theme.HEAD)
+    except TypeError:
+        return gr.Blocks(title="AI Auto Video", theme=theme, css=ui_theme.CSS)
+
+
 def build_ui() -> gr.Blocks:
     existing = P.list_projects()
     default_project = existing[0] if existing else "du-an-1"
     d = P.DEFAULT_SETTINGS
 
-    with gr.Blocks(title="AI Auto Video", theme=ui_theme.make_theme(), css=ui_theme.CSS, head=ui_theme.HEAD) as demo:
+    with _blocks() as demo:
         gr.HTML(ui_theme.HERO_HTML)
         with gr.Row(elem_classes="projbar"):
             project = gr.Dropdown(choices=existing, value=default_project, allow_custom_value=True,

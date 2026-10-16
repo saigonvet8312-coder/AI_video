@@ -65,11 +65,15 @@ def make_theme():
         table_odd_background_fill=SURFACE_2,
         table_border_color=BORDER,
     )
-    both = {}
-    for k, v in base.items():  # chỉ có một giao diện tối: đặt cùng giá trị cho chế độ sáng và tối
-        both[k] = v
-        both[k + "_dark"] = v
-    return theme.set(**both)
+    # Chỉ có một giao diện tối: đặt cùng giá trị cho chế độ sáng và tối. Mỗi biến được đặt riêng và bỏ qua nếu phiên bản
+    # Gradio đang dùng không có tên biến đó (tránh sập khi Gradio đổi tên/bỏ biến).
+    for k, v in base.items():
+        for name in (k, k + "_dark"):
+            try:
+                theme.set(**{name: v})
+            except TypeError:
+                pass
+    return theme
 
 
 HERO_HTML = """
