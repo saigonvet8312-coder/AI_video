@@ -39,7 +39,7 @@ Kết quả tải về ở tab ④: `ket-qua.zip` (gồm `video.mp4`, `voice.mp3
 
 ## Bảo mật
 
-- **Giao diện riêng tư mặc định**: máy chủ chỉ lắng nghe `127.0.0.1` và được mở qua cổng riêng của Colab (`AVG_SHARE=0`). Link công khai chỉ bật khi bạn tick `SHARE_PUBLIC_LINK` ở Phần 3 (hoặc đặt `AVG_SHARE=1`); khi đó giao diện **bắt buộc có mật khẩu** (`AVG_USER`/`AVG_PASS`, không đặt thì mật khẩu ngẫu nhiên được in ra).
+- **Link web riêng có mật khẩu**: Phần 3 của notebook tạo link `gradio.live` và hiện thẻ có nút "Mở giao diện" kèm tài khoản/mật khẩu ngẫu nhiên; ai không có mật khẩu thì không vào được. Bỏ tick `SHARE_PUBLIC_LINK` để giao diện chỉ hiện trong cell (không có link). Khi chạy trực tiếp `python -m app.main`, mặc định **không** chia sẻ (`AVG_SHARE=0`, chỉ lắng nghe `127.0.0.1`); đặt `AVG_SHARE=1` thì cũng bắt buộc có mật khẩu (`AVG_USER`/`AVG_PASS`).
 - **Chỉ phục vụ file trong thư mục dự án và thư viện giọng** (`allowed_paths`), không mở cả `/content` hay Google Drive.
 - **API key Anthropic và token Hugging Face** được truyền theo từng lần bấm nút, không lưu vào dự án và không dùng biến toàn cục chung giữa các phiên.
 - **Phần 2 không xoá thư mục mã**: khi đổi repo, thư mục cũ được chuyển sang `/content/AI_video.bak-<thời gian>`.
@@ -90,6 +90,7 @@ app/
   render.py      dựng hình bằng Chromium + FFmpeg
   assemble.py    ghép video, trộn âm thanh, xuất phụ đề
   aivideo.py     ảnh → video bằng Stable Video Diffusion, khớp độ dài giọng
+  ui_theme.py    giao diện: bảng màu tối, CSS, khung hero và khung kết quả
   audiofx.py     nhạc nền tự tạo, hiệu ứng chuyển cảnh, tự hạ nhạc khi có giọng
   captions.py    phụ đề cháy sẵn kiểu karaoke (ASS)
   jobs.py        chạy nền, phát nhật ký trực tiếp
