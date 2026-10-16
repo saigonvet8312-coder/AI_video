@@ -20,6 +20,7 @@ SETTING_KEYS = [
     "brand", "tagline", "url", "theme", "custom_colors", "accent_from", "accent_to", "quality",
     "continuous", "speed", "seed", "normalize", "voice", "auto_images",
     "bgm", "bgm_volume", "sfx", "captions", "video_ai", "video_frames", "video_motion",
+    "style_preset", "style_note",
 ]
 
 
@@ -40,6 +41,8 @@ def merge_settings(vals) -> dict:
     st["video_ai"] = bool(st["video_ai"])
     st["video_frames"] = 14 if int(st["video_frames"] or 25) <= 14 else 25
     st["video_motion"] = min(max(int(st["video_motion"] or 110), 20), 250)
+    st["style_preset"] = st["style_preset"] if st["style_preset"] in media.STYLES else media.DEFAULT_STYLE_KEY
+    st["style_note"] = str(st["style_note"] or "").strip()[:300]
     return st
 
 
@@ -103,7 +106,7 @@ def fill_handler(rows):
 def director_handler(rows, api_key, model, topic, use_ai, brand):
     scenes = K.rows_to_scenes(rows)
     try:
-        style = media.parse_style()
+        style = media.get_style({})
         theme, designed = director.direct(
             scenes, api_key, model or director.DEFAULT_MODEL, topic or "", (brand or "").strip(), bool(use_ai), style)
     except UserError as e:
@@ -461,8 +464,8 @@ def build_ui() -> gr.Blocks:
                             gr.Markdown("### 1 · Prompt cho từng cảnh")
                             gr.Markdown(
                                 "Tool đọc **lời đọc của từng cảnh** (đã tách ở bước ①) và viết prompt mô tả hình ảnh. "
-                                f"Phong cách ảnh đã đặt sẵn (**{media.DEFAULT_STYLE['style_name']}**) nên prompt chỉ cần nói về "
-                                "**chủ thể và hành động**. Bạn có thể sửa trực tiếp trong bảng."
+                                "Phong cách ảnh chọn ở bước 2, nên prompt chỉ cần nói về **chủ thể và hành động**. "
+                                "Bạn có thể sửa trực tiếp trong bảng."
                             )
                             with gr.Row():
                                 prompt_btn = gr.Button("✍️ Tạo prompt từ nội dung kịch bản", variant="primary", scale=3)
@@ -476,6 +479,12 @@ def build_ui() -> gr.Blocks:
                             )
                         with gr.Group(elem_classes="card"):
                             gr.Markdown("### 2 · Tạo ảnh từ prompt")
+                            with gr.Row():
+                                style_preset = gr.Dropdown(choices=media.STYLE_CHOICES, value=d["style_preset"],
+                                                           label="🎨 Phong cách ảnh AI", scale=3)
+                                style_note = gr.Textbox(value=d["style_note"], scale=3,
+                                                        label="Ghi chú phong cách thêm (tuỳ chọn, tiếng Anh)",
+                                                        placeholder="ví dụ: golden hour, wide angle")
                             with gr.Row():
                                 force_ai = gr.Checkbox(value=False, label="Tạo lại ảnh AI từ đầu", scale=2)
                                 ai_btn = gr.Button("🎨 Tạo ảnh AI từ prompt", variant="primary", scale=3)
@@ -556,7 +565,7 @@ def build_ui() -> gr.Blocks:
         gr.HTML(ui_theme.FOOT_HTML)
 
         settings = [brand, tagline, url, theme, custom_colors, accent_from, accent_to, quality, continuous, speed, seed, normalize, voice, auto_images,
-                    bgm, bgm_volume, sfx, caps, video_ai, video_frames, video_motion]
+                    bgm, bgm_volume, sfx, caps, video_ai, video_frames, video_motion, style_preset, style_note]
         base = [project, table] + settings  # đầu vào chung
 
         demo.load(open_project, [project], [table] + settings + [status])

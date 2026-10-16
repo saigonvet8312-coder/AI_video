@@ -36,6 +36,8 @@ DEFAULT_SETTINGS = {
     "video_ai": False,
     "video_frames": 25,
     "video_motion": 110,
+    "style_preset": "cosmic",
+    "style_note": "",
 }
 
 # Khung thiết kế luôn là 1080x1920; "scale" chỉ đổi độ phân giải xuất ra.

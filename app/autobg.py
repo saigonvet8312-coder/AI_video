@@ -1,4 +1,4 @@
-"""Tự điền mô tả ảnh nền cho các cảnh còn trống khi đã có JSON phong cách (có nhớ để không đổi giữa các lần chạy)."""
+"""Tự điền mô tả ảnh nền cho các cảnh còn trống theo phong cách đã chọn (có nhớ để không đổi giữa các lần chạy)."""
 from __future__ import annotations
 
 import json
@@ -25,9 +25,7 @@ def fill(pdir: Path, scenes: list[dict], st: dict, api_key: str = "", model: str
     """Điền scene['bg'] cho cảnh còn trống. Trả về số cảnh được điền."""
     if not st.get("auto_images"):
         return 0
-    style = media.parse_style(st.get("style_json"))
-    if style is None:
-        return 0
+    style = media.get_style(st)
     need = [i for i, sc in enumerate(scenes) if eligible(sc)]
     if not need:
         return 0
