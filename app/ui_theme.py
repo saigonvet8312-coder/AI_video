@@ -147,6 +147,11 @@ html,body,.gradio-container{background:%(bg)s !important}
 .gradio-container button.primary:hover{transform:translateY(-1px);box-shadow:0 14px 32px rgba(236,72,153,.35)}
 .gradio-container button.secondary:hover{transform:translateY(-1px)}
 
+/* Thẻ từng bước ở tab ③ */
+.card{padding:16px 18px !important;border:1px solid var(--bd) !important;border-radius:18px !important;
+  background:rgba(17,24,51,.55) !important;margin-bottom:14px !important}
+.card h3{margin:0 0 6px !important;font-weight:800 !important;font-size:18px !important}
+
 /* Khung kết quả cố định bên phải */
 .dock{position:sticky;top:14px;align-self:flex-start;gap:12px !important;padding:16px !important;border:1px solid var(--bd) !important;
   border-radius:20px !important;background:linear-gradient(180deg,rgba(17,24,51,.92),rgba(13,19,48,.92)) !important;

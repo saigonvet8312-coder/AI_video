@@ -21,7 +21,7 @@ def _load(pdir: Path) -> dict:
     return json.loads(f.read_text(encoding="utf-8")) if f.exists() else {}
 
 
-def fill(pdir: Path, scenes: list[dict], st: dict, api_key: str = "", model: str = "", log=print) -> int:
+def fill(pdir: Path, scenes: list[dict], st: dict, api_key: str = "", model: str = "", log=print, refresh: bool = False) -> int:
     """Điền scene['bg'] cho cảnh còn trống. Trả về số cảnh được điền."""
     if not st.get("auto_images"):
         return 0
@@ -33,7 +33,7 @@ def fill(pdir: Path, scenes: list[dict], st: dict, api_key: str = "", model: str
         return 0
     key = lambda sc: digest(sc["voice"].strip(), style["style_name"])  # noqa: E731
     cache = _load(pdir)
-    missing = [i for i in need if key(scenes[i]) not in cache]
+    missing = need if refresh else [i for i in need if key(scenes[i]) not in cache]
     if missing:
         outs = subjects.generate([scenes[i]["voice"] for i in missing], style, api_key, model, log=log)
         for i, subject in zip(missing, outs):
