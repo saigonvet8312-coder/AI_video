@@ -6,7 +6,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from . import media
+from . import media, subjects
 from .project import UserError
 
 STEPS = 25
@@ -56,13 +56,15 @@ def generate_all(pdir: Path, scenes: list[dict], st: dict, force: bool = False, 
 
     style = media.require_style(st)
     log(f"🎨 Phong cách: {style['style_name']}")
+    english = subjects.english_for(pdir, [t[1] for t in targets], st.get("_api_key", ""), st.get("_model", ""), log=log)
     pipe = _load(log)
     w, h = media.AI_SIZE
     try:
         for k, (i, prompt, path) in enumerate(targets, 1):
-            log(f"🎨 Ảnh {k}/{len(targets)} (cảnh {i + 1}): {prompt[:70]}")
+            subject = english[k - 1]
+            log(f"🎨 Ảnh {k}/{len(targets)} (cảnh {i + 1}): {subject[:70]}")
             gen = torch.Generator("cuda").manual_seed(int(st["seed"]) + i)
-            p1, p2, neg = media.ai_prompts(prompt, style)
+            p1, p2, neg = media.ai_prompts(subject, style)
             img = pipe(
                 prompt=p1, prompt_2=p2, negative_prompt=neg, negative_prompt_2=neg, width=w, height=h,
                 num_inference_steps=STEPS, guidance_scale=GUIDANCE, generator=gen,

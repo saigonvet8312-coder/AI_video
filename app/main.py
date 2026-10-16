@@ -7,7 +7,7 @@ from pathlib import Path
 
 import gradio as gr
 
-from . import aiimage, aivideo, assemble, audiofx, autobg, captions, director, media, render, scriptkit as K, tts, voices
+from . import aiimage, aivideo, assemble, audiofx, autobg, captions, director, media, render, scriptkit as K, subjects, tts, voices
 from . import project as P
 from . import ui_theme
 from .jobs import run_job
@@ -70,7 +70,8 @@ def prepare(name: str, rows, vals, save: bool = True, auto: bool = False, log=pr
         autobg.fill(pdir, scenes, st, sec["api_key"], sec["model"], log=log, refresh=refresh)
     if save:
         P.save_project(name, scenes, st)
-    st["_hf_token"] = sec["hf_token"]  # chỉ dùng trong yêu cầu này, đặt SAU khi lưu nên không ghi ra file dự án
+    # Chỉ dùng trong yêu cầu này, đặt SAU khi lưu nên không ghi ra file dự án
+    st["_hf_token"], st["_api_key"], st["_model"] = sec["hf_token"], sec["api_key"], sec["model"]
     return pdir, scenes, st
 
 
@@ -237,6 +238,13 @@ def prompts_handler(name, api_key, model, rewrite, rows, *vals):
     out = K.scenes_to_rows(scenes)
     n = sum(1 for sc in scenes if sc["bg"].strip() and sc["template"] != "outro")
     return out, _prompt_view(out), f"✅ Đã có prompt cho {n} cảnh. Sửa trực tiếp trong bảng nếu muốn, rồi sang bước 2 để tạo ảnh."
+
+
+def suggest_note_handler(api_key, model, preset, rows):
+    voices = [str(r[COL_VOICE]).strip() for _i, r in _nonblank(rows) if str(r[COL_VOICE]).strip()]
+    style = media.get_style({"style_preset": preset})
+    return subjects.suggest_note(voices, style["style_name"], media.default_note(preset), (api_key or "").strip(),
+                                 (model or "").strip() or director.DEFAULT_MODEL)
 
 
 def scene_video_handler(name, idx, rows, *vals):
@@ -484,7 +492,8 @@ def build_ui() -> gr.Blocks:
                                                            label="🎨 Phong cách ảnh AI", scale=3)
                                 style_note = gr.Textbox(value=d["style_note"], scale=3,
                                                         label="Ghi chú phong cách thêm (tuỳ chọn, tiếng Anh)",
-                                                        placeholder="ví dụ: golden hour, wide angle")
+                                                        placeholder="để trống cũng được, hoặc bấm “Tự gợi ý”")
+                                note_btn = gr.Button("✨ Tự gợi ý", scale=1)
                             with gr.Row():
                                 force_ai = gr.Checkbox(value=False, label="Tạo lại ảnh AI từ đầu", scale=2)
                                 ai_btn = gr.Button("🎨 Tạo ảnh AI từ prompt", variant="primary", scale=3)
@@ -582,6 +591,7 @@ def build_ui() -> gr.Blocks:
                          [table, prompt_table, prompt_status])
         (getattr(prompt_table, "input", None) or prompt_table.change)(sync_prompts, [prompt_table, table], [table])
         tab3.select(refresh_prompts, [table], [prompt_table])
+        note_btn.click(suggest_note_handler, [api_key, dir_model, style_preset, table], [style_note])
         scene_video_btn.click(scene_video_handler, [project, scene_video_idx, table] + settings, [scene_video])
         split_btn.click(split_handler, [script_text, add_outro, brand], table)
         fill_btn.click(fill_handler, [table], table)

@@ -44,6 +44,7 @@ _NEG = "text, logo, watermark, cluttered typography, busy background elements un
 
 STYLES = {
     "cosmic": {
+        "note": "glowing particles, deep space, dramatic backlight",
         "label": "Vũ trụ công nghệ phát sáng (mặc định)",
         "style": {
             "style_name": "cosmic tech brain glow",
@@ -64,6 +65,7 @@ STYLES = {
         },
     },
     "mystic": {
+        "note": "foggy, low light, dramatic shadows, ancient atmosphere",
         "label": "Huyền bí, triết học tối",
         "style": {
             "style_name": "dark mystical philosophy",
@@ -81,6 +83,7 @@ STYLES = {
         },
     },
     "cinematic": {
+        "note": "golden hour, shallow depth of field, film grain",
         "label": "Điện ảnh chân thực",
         "style": {
             "style_name": "cinematic photoreal",
@@ -94,6 +97,7 @@ STYLES = {
         },
     },
     "anime": {
+        "note": "soft pastel colors, warm sunset light, gentle clouds",
         "label": "Hoạt hình vẽ tay (kiểu anime)",
         "style": {
             "style_name": "painterly anime illustration",
@@ -107,6 +111,7 @@ STYLES = {
         },
     },
     "flat": {
+        "note": "bold shapes, limited colors, plenty of empty space",
         "label": "Minh hoạ phẳng tối giản",
         "style": {
             "style_name": "minimal flat vector",
@@ -120,6 +125,7 @@ STYLES = {
         },
     },
     "watercolor": {
+        "note": "soft washes, airy light, paper texture",
         "label": "Màu nước",
         "style": {
             "style_name": "delicate watercolor",
@@ -133,6 +139,7 @@ STYLES = {
         },
     },
     "cyberpunk": {
+        "note": "neon reflections, rainy night, strong rim light",
         "label": "Cyberpunk thành phố neon",
         "style": {
             "style_name": "neon cyberpunk city",
@@ -146,6 +153,7 @@ STYLES = {
         },
     },
     "clay": {
+        "note": "soft studio light, pastel backdrop, playful",
         "label": "Đất sét 3D dễ thương",
         "style": {
             "style_name": "cute 3D clay",
@@ -162,6 +170,10 @@ STYLES = {
 DEFAULT_STYLE_KEY = "cosmic"
 DEFAULT_STYLE = STYLES[DEFAULT_STYLE_KEY]["style"]
 STYLE_CHOICES = [(v["label"], k) for k, v in STYLES.items()]
+
+
+def default_note(key: str) -> str:
+    return (STYLES.get(key) or STYLES[DEFAULT_STYLE_KEY]).get("note", "")
 
 
 def get_style(st: dict | None = None) -> dict:
@@ -182,8 +194,10 @@ def require_style(st: dict) -> dict:
 def ai_prompts(subject: str, style: dict) -> tuple[str, str, str]:
     """(prompt chính, prompt phụ cho bộ mã hoá thứ hai của SDXL, negative). Chủ thể luôn đứng đầu."""
     subject = subject.strip()
-    p1 = ", ".join(x for x in (subject, style["full_prompt_string"]) if x)
-    p2 = ", ".join(x for x in (subject, style["composition"], style["lighting"], style["color_palette"]) if x)
+    # Phong cách khác mặc định: đặt tên phong cách lên đầu để mô hình bám sát hơn (mặc định giữ nguyên như cũ)
+    lead = style["style_name"] if style["style_name"] != DEFAULT_STYLE["style_name"] else ""
+    p1 = ", ".join(x for x in (lead, subject, style["full_prompt_string"]) if x)
+    p2 = ", ".join(x for x in (lead, subject, style["composition"], style["lighting"], style["color_palette"]) if x)
     neg = ", ".join(x for x in (style["negative_prompt"], NEGATIVE_BASE) if x)
     return p1, p2, neg
 

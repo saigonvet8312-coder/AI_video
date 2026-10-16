@@ -2,10 +2,13 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 import sys
+from pathlib import Path
 
 from .director import DEFAULT_MODEL
+from .project import digest
 from .scriptkit import sentences, short_title
 
 SYSTEM = """Bạn là họa sĩ phân cảnh cho video dọc 9:16. Bạn nhận TOÀN BỘ kịch bản (mỗi dòng là lời đọc một cảnh, tiếng Việt). Với mỗi cảnh, viết MỘT mô tả CHỦ THỂ ảnh bằng TIẾNG ANH để AI vẽ.
@@ -72,3 +75,98 @@ def generate(voices: list[str], style: dict, api_key: str = "", model: str = "",
     else:
         log("ℹ️ Chưa có Anthropic API key: dùng dịch tự động để mô tả ảnh (nhập key ở tab ① để ảnh sát nội dung hơn).")
     return _translate(voices, log)
+
+
+# ── Đưa prompt về tiếng Anh sạch cho mô hình ảnh ──────────────────────────────
+_NON_ASCII_LETTER = re.compile(r"[^\x00-\x7F]")
+_JUNK = re.compile(r"[^\w\s,.'\-()/:;!?&%+]", re.UNICODE)
+
+
+def needs_english(text: str) -> bool:
+    """Có chữ có dấu (tiếng Việt, v.v.)? Mô hình ảnh chỉ hiểu tốt tiếng Anh."""
+    return bool(_NON_ASCII_LETTER.search(_JUNK.sub("", text or "")))
+
+
+def clean_prompt(text: str) -> str:
+    """Bỏ emoji, ký hiệu và định dạng (*, |, 📌...) để không làm nhiễu prompt."""
+    t = (text or "").replace("|", ", ").replace("*", "")
+    t = _JUNK.sub(" ", t)
+    return re.sub(r"\s+", " ", t).strip(" ,;")
+
+
+def _claude_translate(texts: list[str], api_key: str, model: str, client=None) -> list[str]:
+    if client is None:
+        from anthropic import Anthropic
+
+        client = Anthropic(api_key=api_key.strip())
+    system = ("Dịch từng dòng (tiếng Việt) thành MỘT mô tả hình ảnh ngắn bằng tiếng Anh (15–30 từ) để AI vẽ: chủ thể cụ thể, "
+              "hành động, bối cảnh. Không đưa chữ/số/logo vào ảnh, không tên người nổi tiếng. "
+              "Chỉ trả về một mảng JSON các chuỗi, đúng số lượng và thứ tự.")
+    msg = client.messages.create(model=model or DEFAULT_MODEL, max_tokens=4000, system=system,
+                                 messages=[{"role": "user", "content": "\n".join(f"{i}. {t}" for i, t in enumerate(texts, 1))}])
+    raw = "".join(getattr(b, "text", "") for b in msg.content).strip()
+    raw = raw[raw.index("["): raw.rindex("]") + 1]
+    out = json.loads(raw)
+    if len(out) != len(texts):
+        raise ValueError("số mô tả không khớp")
+    return [str(x).strip() for x in out]
+
+
+def _google_translate(texts: list[str]) -> list[str]:
+    try:
+        from deep_translator import GoogleTranslator
+    except ImportError:
+        subprocess.run([sys.executable, "-m", "pip", "install", "-q", "deep-translator"], check=True)
+        from deep_translator import GoogleTranslator
+    tr = GoogleTranslator(source="vi", target="en")
+    return [tr.translate(" ".join(t.split()[:60])) for t in texts]
+
+
+def english_for(pdir: Path, prompts: list[str], api_key: str = "", model: str = "", log=print, client=None) -> list[str]:
+    """Prompt tiếng Anh sạch cho từng cảnh (dịch nếu cần, có nhớ kết quả trong dự án)."""
+    cache_f = Path(pdir) / "prompt_en.json"
+    cache = json.loads(cache_f.read_text(encoding="utf-8")) if cache_f.exists() else {}
+    todo = [p for p in dict.fromkeys(prompts) if needs_english(clean_prompt(p)) and digest(p) not in cache]
+    if todo:
+        cleaned = [clean_prompt(p) for p in todo]
+        outs = None
+        if client is not None or (api_key or "").strip():
+            try:
+                log(f"🌐 Claude đang dịch {len(todo)} prompt tiếng Việt sang tiếng Anh cho mô hình ảnh...")
+                outs = _claude_translate(cleaned, api_key, model, client)
+            except Exception as e:  # noqa: BLE001
+                log(f"⚠️ Không dùng được Claude để dịch ({e}); chuyển sang dịch tự động.")
+        if outs is None:
+            try:
+                log(f"🌐 Đang dịch {len(todo)} prompt tiếng Việt sang tiếng Anh cho mô hình ảnh...")
+                outs = _google_translate(cleaned)
+            except Exception as e:  # noqa: BLE001
+                log(f"⚠️ Không dịch được ({e}); dùng nguyên văn, ảnh có thể kém sát nội dung.")
+                outs = cleaned
+            else:
+                pass
+        for p, o in zip(todo, outs):
+            cache[digest(p)] = clean_prompt(o)
+        cache_f.write_text(json.dumps(cache, ensure_ascii=False, indent=1), encoding="utf-8")
+    return [cache.get(digest(p), clean_prompt(p)) if needs_english(clean_prompt(p)) else clean_prompt(p) for p in prompts]
+
+
+def suggest_note(voices: list[str], style_name: str, default_note: str, api_key: str = "", model: str = "", client=None) -> str:
+    """Gợi ý ghi chú phong cách (tiếng Anh) hợp tâm trạng kịch bản; không có Claude thì dùng gợi ý mặc định của kiểu."""
+    if client is None and not (api_key or "").strip():
+        return default_note
+    try:
+        if client is None:
+            from anthropic import Anthropic
+
+            client = Anthropic(api_key=api_key.strip())
+        system = (f"Phong cách ảnh đã chọn: {style_name}. Đọc kịch bản và đề xuất 4–8 từ khoá tiếng Anh, cách nhau bằng dấu phẩy, "
+                  "về ÁNH SÁNG, KHÔNG KHÍ, MÀU SẮC, GÓC MÁY hợp tâm trạng kịch bản. Không nêu vật thể/chủ thể, không chữ/số. "
+                  "Chỉ trả về các từ khoá, không giải thích.")
+        text = "\n".join(v.strip() for v in voices[:14])[:3000]
+        msg = client.messages.create(model=model or DEFAULT_MODEL, max_tokens=120, system=system,
+                                     messages=[{"role": "user", "content": text}])
+        out = "".join(getattr(b, "text", "") for b in msg.content).strip().strip(".")
+        return clean_prompt(out) or default_note
+    except Exception:  # noqa: BLE001
+        return default_note
