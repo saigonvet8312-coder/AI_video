@@ -9,6 +9,7 @@ import gradio as gr
 
 from . import aiimage, aivideo, assemble, audiofx, autobg, captions, director, media, render, scriptkit as K, tts, voices
 from . import project as P
+from . import ui_theme
 from .jobs import run_job
 from .project import UserError
 from .templates import THEMES
@@ -317,155 +318,157 @@ def build_ui() -> gr.Blocks:
     default_project = existing[0] if existing else "du-an-1"
     d = P.DEFAULT_SETTINGS
 
-    with gr.Blocks(title="AI Auto Video", theme=gr.themes.Soft()) as demo:
-        gr.Markdown(
-            "# 🎬 AI Auto Video\n"
-            "Biến kịch bản của bạn thành video dọc 9:16 — làm từng bước, bước nào xong được lưu lại để dùng tiếp."
-        )
-        with gr.Row():
+    with gr.Blocks(title="AI Auto Video", theme=ui_theme.make_theme(), css=ui_theme.CSS, head=ui_theme.HEAD) as demo:
+        gr.HTML(ui_theme.HERO_HTML)
+        with gr.Row(elem_classes="projbar"):
             project = gr.Dropdown(choices=existing, value=default_project, allow_custom_value=True,
                                   label="Dự án (gõ tên mới để tạo)", scale=4)
             open_btn = gr.Button("📂 Mở", scale=1)
             save_btn = gr.Button("💾 Lưu", scale=1)
         status = gr.Markdown()
 
-        with gr.Tabs():
-            # ① Kịch bản ----------------------------------------------------
-            with gr.Tab("① Kịch bản"):
-                script_text = gr.Textbox(lines=8, label="Dán kịch bản của bạn",
-                                         placeholder="Mỗi đoạn cách nhau một dòng trống. Đoạn dài sẽ tự tách thành nhiều cảnh.")
-                with gr.Row():
-                    add_outro = gr.Checkbox(value=True, label="Tự thêm cảnh kết (outro)")
-                    split_btn = gr.Button("✂️ Tách thành các cảnh", variant="primary")
-                    fill_btn = gr.Button("🪄 Điền tự động các ô trống")
-                with gr.Accordion("✨ Đạo diễn AI — tự chọn chủ đề, mẫu cảnh, chữ và mô tả ảnh nền (tuỳ chọn)", open=False):
-                    api_key = gr.Textbox(type="password", label="Anthropic API key (không lưu vào dự án) — dùng cho Đạo diễn AI và để viết mô tả ảnh sát nội dung hơn")
-                    with gr.Row():
-                        dir_model = gr.Textbox(value=director.DEFAULT_MODEL, label="Mô hình")
-                        dir_topic = gr.Textbox(label="Chủ đề / phong cách mong muốn (không bắt buộc)",
-                                               placeholder="vd: công nghệ, tông tối, nhịp nhanh")
-                    dir_ai_img = gr.Checkbox(value=True, label="Để AI mô tả ảnh nền cho các cảnh")
-                    director_btn = gr.Button("✨ Thiết kế video từ kịch bản")
-                table = gr.Dataframe(
-                    value=[[""] * len(K.HEADERS)], headers=K.HEADERS, datatype=["str"] * len(K.HEADERS),
-                    type="array", interactive=True, wrap=True, label="Danh sách cảnh (sửa trực tiếp, có thể thêm dòng)",
-                )
-                gr.Markdown(
-                    "**Cách điền:** chỉ cần cột **Lời đọc** là đủ — các ô khác để trống sẽ được tự điền.\n\n"
-                    "- **Mẫu:** `hero` · `stat` · `statement` · `list` · `quote` · `compare` · `image` · `outro`\n"
-                    "- **Tiêu đề:** dùng `|` để xuống dòng, đặt `*từ khoá*` trong dấu sao để tô sáng · **Danh sách:** các mục cách nhau "
-                    "bằng `|`, có thể bắt đầu bằng emoji (ví dụ `🔋 Pin trâu`)\n"
-                    "- **Ảnh nền:** tên file trong thư viện ảnh (tab ③), một đường link ảnh, hoặc **mô tả ảnh** (AI sẽ tạo)\n"
-                    "- Lời đọc: số được tự đọc thành chữ (bật/tắt ở tab ②)."
-                )
+        with gr.Row(equal_height=False):
+            with gr.Column(scale=7, min_width=380):
+                with gr.Tabs():
+                    # ① Kịch bản ----------------------------------------------------
+                    with gr.Tab("① Kịch bản"):
+                        script_text = gr.Textbox(lines=8, label="Dán kịch bản của bạn",
+                                                 placeholder="Mỗi đoạn cách nhau một dòng trống. Đoạn dài sẽ tự tách thành nhiều cảnh.")
+                        with gr.Row():
+                            add_outro = gr.Checkbox(value=True, label="Tự thêm cảnh kết (outro)")
+                            split_btn = gr.Button("✂️ Tách thành các cảnh", variant="primary")
+                            fill_btn = gr.Button("🪄 Điền tự động các ô trống")
+                        with gr.Accordion("✨ Đạo diễn AI — tự chọn chủ đề, mẫu cảnh, chữ và mô tả ảnh nền (tuỳ chọn)", open=False):
+                            api_key = gr.Textbox(type="password", label="Anthropic API key (không lưu vào dự án) — dùng cho Đạo diễn AI và để viết mô tả ảnh sát nội dung hơn")
+                            with gr.Row():
+                                dir_model = gr.Textbox(value=director.DEFAULT_MODEL, label="Mô hình")
+                                dir_topic = gr.Textbox(label="Chủ đề / phong cách mong muốn (không bắt buộc)",
+                                                       placeholder="vd: công nghệ, tông tối, nhịp nhanh")
+                            dir_ai_img = gr.Checkbox(value=True, label="Để AI mô tả ảnh nền cho các cảnh")
+                            director_btn = gr.Button("✨ Thiết kế video từ kịch bản")
+                        table = gr.Dataframe(
+                            value=[[""] * len(K.HEADERS)], headers=K.HEADERS, datatype=["str"] * len(K.HEADERS),
+                            type="array", interactive=True, wrap=True, label="Danh sách cảnh (sửa trực tiếp, có thể thêm dòng)",
+                        )
+                        gr.Markdown(
+                            "**Cách điền:** chỉ cần cột **Lời đọc** là đủ — các ô khác để trống sẽ được tự điền.\n\n"
+                            "- **Mẫu:** `hero` · `stat` · `statement` · `list` · `quote` · `compare` · `image` · `outro`\n"
+                            "- **Tiêu đề:** dùng `|` để xuống dòng, đặt `*từ khoá*` trong dấu sao để tô sáng · **Danh sách:** các mục cách nhau "
+                            "bằng `|`, có thể bắt đầu bằng emoji (ví dụ `🔋 Pin trâu`)\n"
+                            "- **Ảnh nền:** một đường link ảnh, hoặc **mô tả ảnh** (AI sẽ tạo) — để trống thì tự điền\n"
+                            "- Lời đọc: số được tự đọc thành chữ (bật/tắt ở tab ②)."
+                        )
 
-            # ② Giọng đọc ---------------------------------------------------
-            with gr.Tab("② Giọng đọc"):
-                gr.Markdown(f"**Thư viện giọng** lưu tại `{voices.ROOT}` (trên Google Drive nếu bạn đã bật ở Phần 2) — dùng lại cho mọi video.")
-                voice = gr.Dropdown(choices=voices.names(), value=d["voice"] or voices.NO_VOICE, allow_custom_value=True,
-                                    label="Chọn giọng đọc cho video này")
-                voice_audio = gr.Audio(label="Nghe thử giọng đã chọn", interactive=False)
-                with gr.Accordion("➕ Lưu giọng mới vào thư viện", open=False):
-                    new_name = gr.Textbox(label="Tên giọng", placeholder="vd: Giọng nam trầm")
-                    new_audio = gr.Audio(sources=["upload", "microphone"], type="filepath",
-                                         label="Giọng mẫu (3–15 giây, rõ tiếng, ít tạp âm)")
-                    new_text = gr.Textbox(label="Lời của giọng mẫu (không bắt buộc, để trống sẽ tự nhận dạng)")
-                    with gr.Row():
-                        voice_save_btn = gr.Button("💾 Lưu giọng", variant="primary")
-                        voice_del_btn = gr.Button("🗑️ Xoá giọng đang chọn")
-                    voice_info = gr.Markdown()
-                with gr.Row():
-                    speed = gr.Slider(0.7, 1.4, value=d["speed"], step=0.05, label="Tốc độ đọc")
-                    seed = gr.Number(value=d["seed"], precision=0, label="Seed")
-                    normalize = gr.Checkbox(value=d["normalize"], label="Tự đọc số thành chữ")
-                with gr.Row():
-                    force_tts = gr.Checkbox(value=False, label="Tạo lại từ đầu (bỏ qua giọng đã có)")
-                    tts_btn = gr.Button("🎙️ Tạo giọng cho các cảnh", variant="primary")
-                tts_log = gr.Textbox(lines=8, label="Nhật ký", interactive=False, autoscroll=True)
-                with gr.Row():
-                    listen_idx = gr.Number(value=1, precision=0, label="Nghe thử cảnh số")
-                    listen_btn = gr.Button("▶ Nghe")
-                listen_audio = gr.Audio(label="Giọng của cảnh", interactive=False)
+                    # ② Giọng đọc ---------------------------------------------------
+                    with gr.Tab("② Giọng đọc"):
+                        gr.Markdown(f"**Thư viện giọng** lưu tại `{voices.ROOT}` (trên Google Drive nếu bạn đã bật ở Phần 2) — dùng lại cho mọi video.")
+                        voice = gr.Dropdown(choices=voices.names(), value=d["voice"] or voices.NO_VOICE, allow_custom_value=True,
+                                            label="Chọn giọng đọc cho video này")
+                        voice_audio = gr.Audio(label="Nghe thử giọng đã chọn", interactive=False)
+                        with gr.Accordion("➕ Lưu giọng mới vào thư viện", open=False):
+                            new_name = gr.Textbox(label="Tên giọng", placeholder="vd: Giọng nam trầm")
+                            new_audio = gr.Audio(sources=["upload", "microphone"], type="filepath",
+                                                 label="Giọng mẫu (3–15 giây, rõ tiếng, ít tạp âm)")
+                            new_text = gr.Textbox(label="Lời của giọng mẫu (không bắt buộc, để trống sẽ tự nhận dạng)")
+                            with gr.Row():
+                                voice_save_btn = gr.Button("💾 Lưu giọng", variant="primary")
+                                voice_del_btn = gr.Button("🗑️ Xoá giọng đang chọn")
+                            voice_info = gr.Markdown()
+                        with gr.Row():
+                            speed = gr.Slider(0.7, 1.4, value=d["speed"], step=0.05, label="Tốc độ đọc")
+                            seed = gr.Number(value=d["seed"], precision=0, label="Seed")
+                            normalize = gr.Checkbox(value=d["normalize"], label="Tự đọc số thành chữ")
+                        with gr.Row():
+                            force_tts = gr.Checkbox(value=False, label="Tạo lại từ đầu (bỏ qua giọng đã có)")
+                            tts_btn = gr.Button("🎙️ Tạo giọng cho các cảnh", variant="primary")
+                        tts_log = gr.Textbox(lines=8, label="Nhật ký", interactive=False, autoscroll=True)
+                        with gr.Row():
+                            listen_idx = gr.Number(value=1, precision=0, label="Nghe thử cảnh số")
+                            listen_btn = gr.Button("▶ Nghe")
+                        listen_audio = gr.Audio(label="Giọng của cảnh", interactive=False)
 
-            # ③ Hình ảnh ----------------------------------------------------
-            with gr.Tab("③ Hình ảnh"):
-                theme = gr.Dropdown(choices=[(v["label"], k) for k, v in THEMES.items()], value=d["theme"],
-                                    label="🎨 Chủ đề hình ảnh (quyết định nền, màu, kiểu chữ, hiệu ứng)")
-                with gr.Row():
-                    brand = gr.Textbox(value=d["brand"], label="Tên kênh / thương hiệu")
-                    tagline = gr.Textbox(value=d["tagline"], label="Khẩu hiệu (cảnh kết)")
-                    url = gr.Textbox(value=d["url"], label="Liên kết (cảnh kết)")
-                with gr.Row():
-                    custom_colors = gr.Checkbox(value=d["custom_colors"], label="Dùng màu của riêng tôi (thay màu của chủ đề)")
-                    accent_from = gr.ColorPicker(value=d["accent_from"], label="Màu nhấn 1")
-                    accent_to = gr.ColorPicker(value=d["accent_to"], label="Màu nhấn 2")
-                with gr.Row():
-                    quality = gr.Radio(
-                        choices=[("Nhanh — 720×1280 · 24fps", "fast"), ("Chuẩn — 1080×1920 · 30fps", "standard")],
-                        value=d["quality"], label="Chất lượng",
-                    )
-                continuous = gr.Checkbox(value=d["continuous"],
-                                         label="Nền chuyển động suốt cảnh (đẹp hơn nhưng dựng lâu hơn)")
-                with gr.Accordion("🎨 Ảnh AI", open=True):
-                    auto_images = gr.Checkbox(value=d["auto_images"],
-                                              label="Tự tạo ảnh AI cho MỌI cảnh (mô tả chủ thể tự viết từ kịch bản)")
-                    gr.Markdown(
-                        f"Phong cách ảnh đã đặt sẵn: **{media.DEFAULT_STYLE['style_name']}**. "
-                        "Mô tả ở cột *Ảnh nền* của từng cảnh chỉ cần nói về **chủ thể**."
-                    )
-                with gr.Accordion("🖼️ Tạo ảnh AI theo kịch bản", open=False):
-                    with gr.Row():
-                        fill_bg_btn = gr.Button("🪄 Điền mô tả ảnh vào bảng (để xem/sửa)")
-                        force_ai = gr.Checkbox(value=False, label="Tạo lại ảnh AI từ đầu")
-                        ai_btn = gr.Button("🎨 Tạo ảnh AI cho các cảnh", variant="primary")
-                    ai_gallery = gr.Gallery(label="Ảnh AI đã tạo", columns=5, height=260, interactive=False)
-                with gr.Accordion("🎬 Video AI — biến ảnh của từng cảnh thành video chuyển động (chậm, cần GPU)", open=False):
-                    video_ai = gr.Checkbox(value=d["video_ai"],
-                                           label="Bật video AI cho cảnh có ảnh nền (hero / image / statement / quote)")
-                    with gr.Row():
-                        video_frames = gr.Radio(choices=[("25 khung (~3.5 giây, đẹp hơn)", 25), ("14 khung (~2 giây, nhanh hơn)", 14)],
-                                                value=d["video_frames"], label="Số khung SVD tạo cho mỗi cảnh")
-                        video_motion = gr.Slider(40, 200, value=d["video_motion"], step=5,
-                                                 label="Mức chuyển động (cao = động nhiều hơn nhưng dễ méo hình)")
-                    hf_token = gr.Textbox(type="password", label="Hugging Face token (không lưu vào dự án) — cần để tải mô hình SVD")
-                    gr.Markdown(
-                        "Cách dùng: ① tạo ảnh AI cho các cảnh → ② bấm **Tạo video AI** → ③ ghép video ở tab ④. "
-                        "Mô hình **ảnh → video**, nên nội dung theo ảnh (đã tạo từ kịch bản), còn chuyển động do mô hình tự suy ra. "
-                        "Mỗi cảnh mất vài phút trên T4 (chưa đo thực tế). Cảnh có video AI không có chữ trên hình, nên phụ đề tự bật. "
-                        "Cần đồng ý điều khoản mô hình `stabilityai/stable-video-diffusion-img2vid-xt` trên Hugging Face."
-                    )
-                    with gr.Row():
-                        force_video = gr.Checkbox(value=False, label="Tạo lại video AI từ đầu")
-                        video_btn = gr.Button("🎬 Tạo video AI cho các cảnh", variant="primary")
-                with gr.Row():
-                    force_render = gr.Checkbox(value=False, label="Dựng lại từ đầu (bỏ qua hình đã có)")
-                    render_btn = gr.Button("🖼️ Dựng hình các cảnh", variant="primary")
-                render_log = gr.Textbox(lines=8, label="Nhật ký", interactive=False, autoscroll=True)
-                with gr.Row():
-                    preview_idx = gr.Number(value=1, precision=0, label="Xem thử cảnh số")
-                    preview_btn = gr.Button("👁️ Xem thử")
-                preview_video = gr.Video(label="Xem thử", interactive=False)
+                    # ③ Hình ảnh ----------------------------------------------------
+                    with gr.Tab("③ Hình ảnh"):
+                        theme = gr.Dropdown(choices=[(v["label"], k) for k, v in THEMES.items()], value=d["theme"],
+                                            label="🎨 Chủ đề hình ảnh (quyết định nền, màu, kiểu chữ, hiệu ứng)")
+                        with gr.Row():
+                            brand = gr.Textbox(value=d["brand"], label="Tên kênh / thương hiệu")
+                            tagline = gr.Textbox(value=d["tagline"], label="Khẩu hiệu (cảnh kết)")
+                            url = gr.Textbox(value=d["url"], label="Liên kết (cảnh kết)")
+                        with gr.Row():
+                            custom_colors = gr.Checkbox(value=d["custom_colors"], label="Dùng màu của riêng tôi (thay màu của chủ đề)")
+                            accent_from = gr.ColorPicker(value=d["accent_from"], label="Màu nhấn 1")
+                            accent_to = gr.ColorPicker(value=d["accent_to"], label="Màu nhấn 2")
+                        with gr.Row():
+                            quality = gr.Radio(
+                                choices=[("Nhanh — 720×1280 · 24fps", "fast"), ("Chuẩn — 1080×1920 · 30fps", "standard")],
+                                value=d["quality"], label="Chất lượng",
+                            )
+                        continuous = gr.Checkbox(value=d["continuous"],
+                                                 label="Nền chuyển động suốt cảnh (đẹp hơn nhưng dựng lâu hơn)")
+                        with gr.Accordion("🎨 Ảnh AI", open=True):
+                            auto_images = gr.Checkbox(value=d["auto_images"],
+                                                      label="Tự tạo ảnh AI cho MỌI cảnh (mô tả chủ thể tự viết từ kịch bản)")
+                            gr.Markdown(
+                                f"Phong cách ảnh đã đặt sẵn: **{media.DEFAULT_STYLE['style_name']}**. "
+                                "Mô tả ở cột *Ảnh nền* của từng cảnh chỉ cần nói về **chủ thể**."
+                            )
+                        with gr.Accordion("🖼️ Tạo ảnh AI theo kịch bản", open=False):
+                            with gr.Row():
+                                fill_bg_btn = gr.Button("🪄 Điền mô tả ảnh vào bảng (để xem/sửa)")
+                                force_ai = gr.Checkbox(value=False, label="Tạo lại ảnh AI từ đầu")
+                                ai_btn = gr.Button("🎨 Tạo ảnh AI cho các cảnh", variant="primary")
+                            ai_gallery = gr.Gallery(label="Ảnh AI đã tạo", columns=5, height=260, interactive=False)
+                        with gr.Accordion("🎬 Video AI — biến ảnh của từng cảnh thành video chuyển động (chậm, cần GPU)", open=False):
+                            video_ai = gr.Checkbox(value=d["video_ai"],
+                                                   label="Bật video AI cho cảnh có ảnh nền (hero / image / statement / quote)")
+                            with gr.Row():
+                                video_frames = gr.Radio(choices=[("25 khung (~3.5 giây, đẹp hơn)", 25), ("14 khung (~2 giây, nhanh hơn)", 14)],
+                                                        value=d["video_frames"], label="Số khung SVD tạo cho mỗi cảnh")
+                                video_motion = gr.Slider(40, 200, value=d["video_motion"], step=5,
+                                                         label="Mức chuyển động (cao = động nhiều hơn nhưng dễ méo hình)")
+                            hf_token = gr.Textbox(type="password", label="Hugging Face token (không lưu vào dự án) — cần để tải mô hình SVD")
+                            gr.Markdown(
+                                "Cách dùng: ① tạo ảnh AI cho các cảnh → ② bấm **Tạo video AI** → ③ ghép video ở tab ④. "
+                                "Mô hình **ảnh → video**, nên nội dung theo ảnh (đã tạo từ kịch bản), còn chuyển động do mô hình tự suy ra. "
+                                "Mỗi cảnh mất vài phút trên T4 (chưa đo thực tế). Cảnh có video AI không có chữ trên hình, nên phụ đề tự bật. "
+                                "Cần đồng ý điều khoản mô hình `stabilityai/stable-video-diffusion-img2vid-xt` trên Hugging Face."
+                            )
+                            with gr.Row():
+                                force_video = gr.Checkbox(value=False, label="Tạo lại video AI từ đầu")
+                                video_btn = gr.Button("🎬 Tạo video AI cho các cảnh", variant="primary")
+                        with gr.Row():
+                            force_render = gr.Checkbox(value=False, label="Dựng lại từ đầu (bỏ qua hình đã có)")
+                            render_btn = gr.Button("🖼️ Dựng hình các cảnh", variant="primary")
+                        render_log = gr.Textbox(lines=8, label="Nhật ký", interactive=False, autoscroll=True)
+                        with gr.Row():
+                            preview_idx = gr.Number(value=1, precision=0, label="Xem thử cảnh số")
+                            preview_btn = gr.Button("👁️ Xem thử")
+                        preview_video = gr.Video(label="Xem thử", interactive=False)
 
-            # ④ Xuất video --------------------------------------------------
-            with gr.Tab("④ Xuất video"):
-                gr.Markdown("Cần có giọng (②) và hình (③) trước. Hoặc bấm **Chạy tất cả** để làm liền mạch.\n\n⚠️ Dự án **không được lưu lại** sau phiên Colab — tải kết quả về ngay khi xong.")
-                with gr.Accordion("🎵 Âm thanh & phụ đề (tuỳ chọn)", open=True):
-                    with gr.Row():
-                        bgm = gr.Radio(choices=audiofx.BGM_CHOICES, value=d["bgm"], label="Nhạc nền (tự tạo, không vướng bản quyền)")
-                        bgm_volume = gr.Slider(0.0, 0.5, value=d["bgm_volume"], step=0.01, label="Âm lượng nhạc nền")
-                    bgm_file = gr.File(file_types=["audio"], label="File nhạc của bạn (chỉ dùng khi chọn “Dùng file nhạc của tôi”)")
-                    with gr.Row():
-                        sfx = gr.Checkbox(value=d["sfx"], label="Hiệu ứng chuyển cảnh (tiếng vút, tiếng bụp ở cảnh số liệu/kết)")
-                        caps = gr.Radio(choices=captions.CAPTION_CHOICES, value=d["captions"],
-                                        label="Phụ đề cháy sẵn trong video (từ đang đọc được tô sáng)")
-                    gr.Markdown("Nhạc tự hạ nhỏ khi có giọng đọc. Phụ đề có thể xem thử ở tab ③ (nút “Xem thử”).")
-                with gr.Row():
-                    assemble_btn = gr.Button("🎬 Ghép video cuối", variant="primary")
-                    all_btn = gr.Button("🚀 Chạy tất cả (giọng → hình → ghép)")
-                out_log = gr.Textbox(lines=8, label="Nhật ký", interactive=False, autoscroll=True)
+                    # ④ Xuất video --------------------------------------------------
+                    with gr.Tab("④ Xuất video"):
+                        gr.Markdown("Chọn nhạc nền và phụ đề, rồi bấm **Ghép video cuối** (khi đã có giọng và hình) hoặc **Tạo video trọn gói** ở khung bên phải.")
+                        with gr.Accordion("🎵 Âm thanh & phụ đề (tuỳ chọn)", open=True):
+                            with gr.Row():
+                                bgm = gr.Radio(choices=audiofx.BGM_CHOICES, value=d["bgm"], label="Nhạc nền (tự tạo, không vướng bản quyền)")
+                                bgm_volume = gr.Slider(0.0, 0.5, value=d["bgm_volume"], step=0.01, label="Âm lượng nhạc nền")
+                            bgm_file = gr.File(file_types=["audio"], label="File nhạc của bạn (chỉ dùng khi chọn “Dùng file nhạc của tôi”)")
+                            with gr.Row():
+                                sfx = gr.Checkbox(value=d["sfx"], label="Hiệu ứng chuyển cảnh (tiếng vút, tiếng bụp ở cảnh số liệu/kết)")
+                                caps = gr.Radio(choices=captions.CAPTION_CHOICES, value=d["captions"],
+                                                label="Phụ đề cháy sẵn trong video (từ đang đọc được tô sáng)")
+                            gr.Markdown("Nhạc tự hạ nhỏ khi có giọng đọc. Phụ đề có thể xem thử ở tab ③ (nút “Xem thử”).")
+                        assemble_btn = gr.Button("🎬 Ghép video cuối", variant="primary")
+
+            with gr.Column(scale=4, min_width=340, elem_classes="dock"):
+                gr.HTML(ui_theme.DOCK_TITLE_HTML)
+                all_btn = gr.Button("🚀 Tạo video trọn gói", variant="primary", elem_id="run_all")
                 out_video = gr.Video(label="Video", interactive=False)
                 out_files = gr.File(label="Tải về: ket-qua.zip (gồm tất cả) · video.mp4 · voice.mp3 · script.txt · captions.srt",
                                     file_count="multiple", interactive=False)
+                out_log = gr.Textbox(lines=7, label="Nhật ký", interactive=False, autoscroll=True)
+        gr.HTML(ui_theme.FOOT_HTML)
 
         settings = [brand, tagline, url, theme, custom_colors, accent_from, accent_to, quality, continuous, speed, seed, normalize, voice, auto_images,
                     bgm, bgm_volume, sfx, caps, video_ai, video_frames, video_motion]
