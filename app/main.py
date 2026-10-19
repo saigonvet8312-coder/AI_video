@@ -473,7 +473,8 @@ def build_ui() -> gr.Blocks:
                             gr.Markdown(
                                 "Tool đọc **lời đọc của từng cảnh** (đã tách ở bước ①) và viết prompt mô tả hình ảnh. "
                                 "Phong cách ảnh chọn ở bước 2, nên prompt chỉ cần nói về **chủ thể và hành động**. "
-                                "Bạn có thể sửa trực tiếp trong bảng."
+                                "Bạn có thể sửa trực tiếp trong bảng. Có Anthropic API key (tab ①) thì Claude viết; không có key thì tool dùng "
+                                "mô hình nhỏ chạy ngay trên Colab để viết thẳng bằng tiếng Anh (lần đầu tải khoảng 6GB, mất vài phút)."
                             )
                             with gr.Row():
                                 prompt_btn = gr.Button("✍️ Tạo prompt từ nội dung kịch bản", variant="primary", scale=3)
