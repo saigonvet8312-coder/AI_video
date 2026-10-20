@@ -81,12 +81,6 @@ HERO_HTML = """
   <div class="hero-badge">AI · 9:16 · TikTok / Reels / Shorts</div>
   <h1 class="hero-title">🎬 AI Auto Video</h1>
   <p class="hero-sub">Dán kịch bản, chọn giọng, bấm một nút: ra video dọc có giọng đọc, hình động, nhạc nền và phụ đề.</p>
-  <div class="stepper">
-    <span class="step"><b>1</b> Kịch bản</span>
-    <span class="step"><b>2</b> Giọng đọc</span>
-    <span class="step"><b>3</b> Hình ảnh</span>
-    <span class="step"><b>4</b> Xuất video</span>
-  </div>
 </div>
 """
 
@@ -124,6 +118,15 @@ html,body,.gradio-container{background:%(bg)s !important}
 .step b{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:50%%;
   background:var(--g);color:#0A0F1F;font-size:12px}
 
+/* Thanh điều hướng 4 bước: cố định khi cuộn, bấm để chuyển tab */
+.stepnav{position:sticky;top:0;z-index:60;margin:14px 0 10px !important;padding:10px 12px !important;gap:10px !important;
+  flex-wrap:wrap !important;border:1px solid var(--bd) !important;border-radius:18px !important;
+  background:rgba(10,15,31,.88) !important;backdrop-filter:blur(12px);box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.stepnav button{height:48px !important;font-size:15px !important;font-weight:700 !important;border-radius:14px !important;white-space:nowrap}
+.stepnav button.secondary{background:rgba(255,255,255,.06) !important;color:#C7D0E6 !important;border:1px solid var(--bd) !important}
+.stepnav button.primary{box-shadow:0 8px 24px rgba(168,85,247,.35)}
+#main_tabs > .tab-wrapper,#main_tabs [role="tablist"]{display:none !important}
+
 /* Thanh dự án */
 .projbar{margin-top:14px !important;padding:10px 12px !important;border:1px solid var(--bd) !important;border-radius:16px !important;
   background:rgba(17,24,51,.7) !important;backdrop-filter:blur(8px);gap:10px !important}
@@ -153,7 +156,7 @@ html,body,.gradio-container{background:%(bg)s !important}
 .card h3{margin:0 0 6px !important;font-weight:800 !important;font-size:18px !important}
 
 /* Khung kết quả cố định bên phải */
-.dock{position:sticky;top:14px;align-self:flex-start;gap:12px !important;padding:16px !important;border:1px solid var(--bd) !important;
+.dock{position:sticky;top:84px;align-self:flex-start;gap:12px !important;padding:16px !important;border:1px solid var(--bd) !important;
   border-radius:20px !important;background:linear-gradient(180deg,rgba(17,24,51,.92),rgba(13,19,48,.92)) !important;
   box-shadow:0 18px 50px rgba(0,0,0,.35)}
 .dock-kicker{font-size:12px;font-weight:800;letter-spacing:.14em;color:#FBBF24}

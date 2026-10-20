@@ -379,6 +379,25 @@ def all_handler(name, api_key, model, hf_token, bgm_file, rows, *vals):
 
 
 # ── Giao diện ─────────────────────────────────────────────────────────────────
+STEP_IDS = ["kichban", "giongdoc", "hinhanh", "xuat"]
+
+
+def _nav_updates(k: int):
+    """Chuyển tab + tô sáng nút của bước đang chọn."""
+    return [gr.Tabs(selected=STEP_IDS[k])] + [gr.Button(variant="primary" if j == k else "secondary") for j in range(len(STEP_IDS))]
+
+
+def _make_go(k: int):
+    def go():
+        return _nav_updates(k)
+
+    return go
+
+
+def _go_prompts(rows):
+    return _nav_updates(2) + [refresh_prompts(rows)]
+
+
 def _blocks():
     """Tạo khung giao diện; nếu theme/head không tương thích với phiên bản Gradio đang chạy thì tự lùi về cấu hình đơn giản."""
     try:
@@ -405,11 +424,17 @@ def build_ui() -> gr.Blocks:
             save_btn = gr.Button("💾 Lưu", scale=1)
         status = gr.Markdown()
 
+        with gr.Row(elem_classes="stepnav"):
+            nav = [
+                gr.Button(label, variant="primary" if k == 0 else "secondary", scale=1, min_width=150)
+                for k, label in enumerate(["① Kịch bản", "② Giọng đọc", "③ Hình ảnh & video", "④ Xuất video"])
+            ]
+
         with gr.Row(equal_height=False):
             with gr.Column(scale=7, min_width=380):
-                with gr.Tabs():
+                with gr.Tabs(elem_id="main_tabs", selected="kichban") as tabs:
                     # ① Kịch bản ----------------------------------------------------
-                    with gr.Tab("① Kịch bản"):
+                    with gr.Tab("① Kịch bản", id="kichban"):
                         script_text = gr.Textbox(lines=8, label="Dán kịch bản của bạn",
                                                  placeholder="Mỗi đoạn cách nhau một dòng trống. Đoạn dài sẽ tự tách thành nhiều cảnh.")
                         with gr.Row():
@@ -438,7 +463,7 @@ def build_ui() -> gr.Blocks:
                         )
 
                     # ② Giọng đọc ---------------------------------------------------
-                    with gr.Tab("② Giọng đọc"):
+                    with gr.Tab("② Giọng đọc", id="giongdoc"):
                         gr.Markdown(f"**Thư viện giọng** lưu tại `{voices.ROOT}` (trên Google Drive nếu bạn đã bật ở Phần 2) — dùng lại cho mọi video.")
                         voice = gr.Dropdown(choices=voices.names(), value=d["voice"] or voices.NO_VOICE, allow_custom_value=True,
                                             label="Chọn giọng đọc cho video này")
@@ -466,7 +491,7 @@ def build_ui() -> gr.Blocks:
                         listen_audio = gr.Audio(label="Giọng của cảnh", interactive=False)
 
                     # ③ Hình ảnh ----------------------------------------------------
-                    with gr.Tab("③ Hình ảnh & video") as tab3:
+                    with gr.Tab("③ Hình ảnh & video", id="hinhanh"):
                         gr.Markdown("**Cách làm:** 1) tạo prompt cho từng cảnh từ kịch bản → 2) tạo ảnh từ prompt → 3) (tuỳ chọn) biến ảnh thành video chuyển động.")
                         with gr.Group(elem_classes="card"):
                             gr.Markdown("### 1 · Prompt cho từng cảnh")
@@ -551,7 +576,7 @@ def build_ui() -> gr.Blocks:
                             preview_video = gr.Video(label="Xem thử", interactive=False)
 
                     # ④ Xuất video --------------------------------------------------
-                    with gr.Tab("④ Xuất video"):
+                    with gr.Tab("④ Xuất video", id="xuat"):
                         gr.Markdown("Chọn nhạc nền và phụ đề, rồi bấm **Ghép video cuối** (khi đã có giọng và hình) hoặc **Tạo video trọn gói** ở khung bên phải.")
                         with gr.Accordion("🎵 Âm thanh & phụ đề (tuỳ chọn)", open=True):
                             with gr.Row():
@@ -591,7 +616,11 @@ def build_ui() -> gr.Blocks:
         prompt_btn.click(prompts_handler, [project, api_key, dir_model, rewrite_prompts, table] + settings,
                          [table, prompt_table, prompt_status])
         (getattr(prompt_table, "input", None) or prompt_table.change)(sync_prompts, [prompt_table, table], [table])
-        tab3.select(refresh_prompts, [table], [prompt_table])
+        for k, (tab_id, btn) in enumerate(zip(STEP_IDS, nav)):
+            if tab_id == "hinhanh":  # sang bước ③ thì nạp lại bảng prompt từ bảng cảnh
+                btn.click(_go_prompts, [table], [tabs] + nav + [prompt_table])
+            else:
+                btn.click(_make_go(k), None, [tabs] + nav)
         note_btn.click(suggest_note_handler, [api_key, dir_model, style_preset, table], [style_note])
         scene_video_btn.click(scene_video_handler, [project, scene_video_idx, table] + settings, [scene_video])
         split_btn.click(split_handler, [script_text, add_outro, brand], table)
