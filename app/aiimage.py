@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import gc
+import importlib
 import subprocess
 import sys
 from pathlib import Path
@@ -21,13 +22,38 @@ def _ensure_diffusers(log):
         subprocess.run([sys.executable, "-m", "pip", "install", "-q", "diffusers", "accelerate", "safetensors"], check=True)
 
 
+def _is_torchao_error(e: BaseException) -> bool:
+    msg = f"{type(e).__name__}: {e}".lower()
+    return "torchao" in msg or "fqntoconfig" in msg
+
+
+def _drop_torchao(log) -> None:
+    """Gỡ torchao (thư viện tuỳ chọn, hay lệch phiên bản với diffusers trên Colab) và xoá bản diffusers đã nạp dở."""
+    log("🔧 Thư viện torchao trên Colab không khớp với diffusers: gỡ torchao (tool không cần) rồi thử lại...")
+    subprocess.run([sys.executable, "-m", "pip", "uninstall", "-y", "-q", "torchao"], check=False)
+    for name in [k for k in sys.modules if k.split(".")[0] in ("diffusers", "torchao")]:
+        del sys.modules[name]
+    importlib.invalidate_caches()
+
+
+def import_diffusers(attr: str, log=print):
+    """Lấy một lớp từ diffusers; nếu lỗi do torchao lệch phiên bản thì tự sửa rồi thử lại một lần."""
+    try:
+        return getattr(importlib.import_module("diffusers"), attr)
+    except Exception as e:  # noqa: BLE001
+        if not _is_torchao_error(e):
+            raise
+        _drop_torchao(log)
+        return getattr(importlib.import_module("diffusers"), attr)
+
+
 def _load(log):
     import torch
 
     if not torch.cuda.is_available():
         raise UserError("Tạo ảnh AI cần GPU. Bật Runtime → T4 GPU.")
     _ensure_diffusers(log)
-    from diffusers import StableDiffusionXLPipeline
+    StableDiffusionXLPipeline = import_diffusers("StableDiffusionXLPipeline", log)
 
     log(f"⏳ Đang tải mô hình ảnh {media.AI_MODEL} (lần đầu mất vài phút)...")
     try:

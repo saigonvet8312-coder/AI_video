@@ -68,7 +68,7 @@ def _load(log, hf_token: str = ""):
     if not torch.cuda.is_available():
         raise UserError("Tạo video AI cần GPU. Bật Runtime → T4 GPU.")
     aiimage._ensure_diffusers(log)
-    from diffusers import StableVideoDiffusionPipeline
+    StableVideoDiffusionPipeline = aiimage.import_diffusers("StableVideoDiffusionPipeline", log)
 
     token = (hf_token or "").strip() or os.environ.get("HF_TOKEN") or _colab_secret("HF_TOKEN") or None
     log(f"⏳ Đang tải mô hình video {SVD_MODEL} (nặng, lần đầu mất vài phút)...")
