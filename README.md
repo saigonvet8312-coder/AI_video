@@ -37,6 +37,10 @@ Kết quả tải về ở tab ④: `ket-qua.zip` (gồm `video.mp4`, `voice.mp3
 
 - **Video AI cho từng cảnh** (tab ③, mục "Video AI"): ảnh AI của mỗi cảnh (tạo từ kịch bản) được Stable Video Diffusion biến thành đoạn video chuyển động thật, rồi làm chậm, nội suy khung và chạy xuôi–ngược cho vừa độ dài giọng đọc. Áp dụng cho cảnh `hero`, `image`, `statement`, `quote`; cảnh số liệu/danh sách/so sánh/kết giữ nguyên đồ hoạ. Cách dùng: tạo ảnh AI → bấm **Tạo video AI** → ghép video ở tab ④. Cảnh video AI không có chữ trên hình nên phụ đề tự bật. Cần GPU, mỗi cảnh mất vài phút trên T4, và cần đồng ý điều khoản mô hình `stabilityai/stable-video-diffusion-img2vid-xt` trên Hugging Face rồi dán token vào ô "Hugging Face token". Đây là mô hình ảnh → video: nội dung theo ảnh, còn chuyển động do mô hình tự suy ra. Đổi mô hình bằng biến môi trường `AVG_VIDEO_MODEL`.
 
+## Giao diện
+
+Thanh **4 bước** (① Kịch bản, ② Giọng đọc, ③ Hình ảnh & video, ④ Xuất video) nằm ngay dưới thanh dự án và **cố định ở đầu màn hình khi cuộn**; bấm vào để chuyển bước, bước đang chọn được tô sáng. Khung **Kết quả** bên phải cũng đứng yên, nên video và nhật ký luôn nhìn thấy dù đang ở bước nào.
+
 ## Bảo mật
 
 - **Link web riêng có mật khẩu**: Phần 3 của notebook tạo link `gradio.live` và hiện thẻ có nút "Mở giao diện" kèm tài khoản/mật khẩu ngẫu nhiên; ai không có mật khẩu thì không vào được. Bỏ tick `SHARE_PUBLIC_LINK` để giao diện chỉ hiện trong cell (không có link). Khi chạy trực tiếp `python -m app.main`, mặc định **không** chia sẻ (`AVG_SHARE=0`, chỉ lắng nghe `127.0.0.1`); đặt `AVG_SHARE=1` thì cũng bắt buộc có mật khẩu (`AVG_USER`/`AVG_PASS`).
@@ -49,10 +53,10 @@ Kết quả tải về ở tab ④: `ket-qua.zip` (gồm `video.mp4`, `voice.mp3
 Tab ③ đi theo ba bước:
 
 1. **Tạo prompt cho từng cảnh**: bấm “Tạo prompt từ nội dung kịch bản”, tool đọc lời đọc của từng cảnh (đã tách ở bước ①) và viết prompt chủ thể. Bảng prompt cho phép sửa trực tiếp (ghi ngược vào cột “Ảnh nền” của bảng cảnh). Tick “Viết lại cả prompt đã có” để viết lại từ đầu; link ảnh bạn tự nhập được giữ nguyên.
-2. **Tạo ảnh từ prompt**: ảnh được tạo theo phong cách mặc định *cosmic tech brain glow* (khai báo ở `DEFAULT_STYLE` trong `app/media.py`).
+2. **Tạo ảnh từ prompt**: chọn **phong cách ảnh AI** ở ô thả xuống (Vũ trụ công nghệ phát sáng · Huyền bí, triết học tối · Điện ảnh chân thực · Hoạt hình vẽ tay · Minh hoạ phẳng tối giản · Màu nước · Cyberpunk · Đất sét 3D), có thể thêm ghi chú tiếng Anh (ví dụ `golden hour, wide angle`). Đổi phong cách là ảnh được tạo lại. Nút **✨ Tự gợi ý** viết giúp ghi chú hợp tâm trạng kịch bản (Claude nếu có API key, không thì dùng gợi ý mặc định của kiểu). Prompt tiếng Việt do bạn tự nhập (kể cả có emoji) cũng được **viết lại thành tiếng Anh sạch** trước khi vẽ, vì mô hình ảnh chỉ hiểu tiếng Anh; kết quả được nhớ trong dự án. Muốn thêm phong cách riêng thì thêm một mục vào `STYLES` trong `app/media.py`.
 3. **Biến ảnh thành video chuyển động** (tuỳ chọn): xem mục “Video AI cho từng cảnh” ở trên. Có nút xem video của từng cảnh.
 
-Prompt tốt hơn khi nhập Anthropic API key (Claude đọc cả kịch bản để giữ mạch hình ảnh); không có key thì tool dịch tự động từ câu đầu của cảnh.
+Prompt luôn được viết **thẳng bằng tiếng Anh**: có Anthropic API key thì Claude viết (đọc cả kịch bản để giữ mạch hình ảnh); không có key thì một mô hình nhỏ (`Qwen/Qwen2.5-3B-Instruct`, đổi bằng biến `AVG_LOCAL_LLM`, đặt `off` để tắt) chạy ngay trên GPU Colab, lần đầu tải khoảng 6GB; nếu không chạy được mới dùng dịch tự động.
 
 ## Lưu trữ
 

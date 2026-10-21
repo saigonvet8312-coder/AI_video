@@ -7,3 +7,5 @@ requests
 anthropic
 deep-translator
 hf_transfer
+transformers
+accelerate
