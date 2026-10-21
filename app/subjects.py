@@ -8,6 +8,7 @@ import re
 import subprocess
 import sys
 import time
+import unicodedata
 from pathlib import Path
 
 from .director import DEFAULT_MODEL
@@ -66,18 +67,40 @@ LOCAL_REWRITE_SYSTEM = (
 _SHOTS = ["wide shot", "close-up", "low angle", "top-down view", "macro detail", "medium shot"]
 
 
+_VI_EXCLUSIVE = re.compile(r"[ăâđêôơư]")  # chữ chỉ có trong tiếng Việt
+_VI_TONED = re.compile(r"[àáạảãằắặẳẵầấậẩẫèéẹẻẽềếệểễìíịỉĩòóọỏõồốộổỗờớợởỡùúụủũừứựửữỳýỵỷỹ]")
+
+
+def _looks_vietnamese(text: str) -> bool:
+    t = text.lower()
+    return bool(_VI_EXCLUSIVE.search(t)) or len(_VI_TONED.findall(t)) >= 2  # "café" (1 dấu) vẫn là tiếng Anh
+
+
+_PUNCT = {"–": "-", "—": "-", "‘": "'", "’": "'", "“": '"', "”": '"', "…": "..."}
+
+
+def _ascii_fold(text: str) -> str:
+    for k, v in _PUNCT.items():
+        text = text.replace(k, v)
+    return unicodedata.normalize("NFKD", text).encode("ascii", "ignore").decode("ascii")
+
+
 def _one_line(text: str) -> str | None:
-    """Lấy dòng prompt từ câu trả lời của mô hình; không hợp lệ (còn tiếng Việt, quá ngắn) thì trả None."""
+    """Lấy dòng prompt từ câu trả lời của mô hình. Loại khi còn chữ tiếng Việt hoặc quá ngắn; dấu câu lạ được chuẩn hoá."""
     lines = [l.strip() for l in (text or "").splitlines() if l.strip()]
     if not lines:
         return None
     t = re.sub(r"^(english\s+)?(image\s+)?prompt\s*:\s*", "", lines[0], flags=re.I).strip(" \"'`")
-    t = clean_prompt(t)
-    return t if len(t.split()) >= 4 and not needs_english(t) else None
+    if _looks_vietnamese(t):
+        return None
+    t = clean_prompt(_ascii_fold(t))
+    return t if len(t.split()) >= 3 else None
 
 
-def _local_generate(pairs: list[tuple[str, str]], log=print, max_new_tokens: int = 80) -> list[str | None]:
-    """Chạy mô hình ngôn ngữ trên GPU của Colab cho từng cặp (system, user). Giải phóng VRAM sau khi xong."""
+def _local_generate(pairs: list[tuple[str, str]], log=print, max_new_tokens: int = 80,
+                    retry_pairs: list[tuple[str, str]] | None = None) -> list[str | None]:
+    """Chạy mô hình ngôn ngữ trên GPU của Colab cho từng cặp (system, user). Câu chưa đạt được viết lại một lượt bằng
+    `retry_pairs` ngay trong lần tải này. Giải phóng VRAM sau khi xong."""
     if LOCAL_MODEL.strip().lower() in ("", "off", "0", "false"):
         raise RuntimeError("đã tắt bằng AVG_LOCAL_LLM")
     import torch
@@ -93,17 +116,34 @@ def _local_generate(pairs: list[tuple[str, str]], log=print, max_new_tokens: int
     log(f"🧠 Đang tải mô hình viết prompt chạy trên Colab ({LOCAL_MODEL}, lần đầu mất vài phút)...")
     tok = AutoTokenizer.from_pretrained(LOCAL_MODEL)
     model = AutoModelForCausalLM.from_pretrained(LOCAL_MODEL, torch_dtype=torch.float16, low_cpu_mem_usage=True).to("cuda")
-    out: list[str | None] = []
-    try:
-        for k, (system, user) in enumerate(pairs, 1):
+
+    def run(system: str, user: str) -> str:
+        try:
             msgs = [{"role": "system", "content": system}, {"role": "user", "content": user}]
             text = tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
             enc = tok(text, return_tensors="pt").to("cuda")
             with torch.no_grad():
                 gen = model.generate(**enc, max_new_tokens=max_new_tokens, do_sample=False, repetition_penalty=1.05)
-            out.append(_one_line(tok.decode(gen[0][enc["input_ids"].shape[1]:], skip_special_tokens=True)))
+            return tok.decode(gen[0][enc["input_ids"].shape[1]:], skip_special_tokens=True)
+        except Exception as e:  # noqa: BLE001  một câu lỗi không làm mất cả lô
+            log(f"   ⚠️ mô hình lỗi ở một câu: {e}")
+            torch.cuda.empty_cache()
+            return ""
+
+    out: list[str | None] = []
+    try:
+        for k, (system, user) in enumerate(pairs, 1):
+            out.append(_one_line(run(system, user)))
             if k % 5 == 0 or k == len(pairs):
                 log(f"   ✍️ đã viết {k}/{len(pairs)} prompt")
+        bad = [k for k, o in enumerate(out) if not o]
+        if bad and retry_pairs:
+            log(f"   🔁 {len(bad)} cảnh chưa đạt, mô hình viết lại ngay (không cần dịch tự động)...")
+            for k in bad:
+                raw = run(*retry_pairs[k])
+                out[k] = _one_line(raw)
+                if not out[k]:
+                    log(f"   ⚠️ cảnh {k + 1} vẫn chưa đạt, câu trả lời của mô hình: {raw.strip()[:80]!r}")
     finally:
         del model
         gc.collect()
@@ -118,7 +158,8 @@ def _local_scenes(voices: list[str], style: dict, log=print) -> list[str | None]
     pairs = [(system, f"Video topic (Vietnamese): {topic}\nScene {i}/{n} narration (Vietnamese): {v.strip()}\n"
                       f"Suggested shot type: {_SHOTS[(i - 1) % len(_SHOTS)]}\nEnglish image prompt:")
              for i, v in enumerate(voices, 1)]
-    return _local_generate(pairs, log)
+    retry = [(LOCAL_REWRITE_SYSTEM, v.strip()) for v in voices]
+    return _local_generate(pairs, log, retry_pairs=retry)
 
 
 
@@ -148,21 +189,27 @@ def _translate_backup(text: str) -> str:
 
 
 def _translate_throttled(texts: list[str], log=print, on_item=None) -> list[str | None]:
-    """Dịch từng câu, nghỉ giữa các yêu cầu và thử lại khi bị giới hạn. Câu không dịch được trả về None."""
+    """Dịch từng câu, nghỉ giữa các yêu cầu và thử lại khi bị giới hạn. Câu không dịch được trả về None.
+    Khi Google đã từ chối sau mọi lần thử, các câu còn lại bỏ qua Google (chỉ thử dịch dự phòng một lần) để không chờ vô ích."""
     out: list[str | None] = []
+    google_ok = True
     for k, text in enumerate(texts):
-        if k:
+        if k and google_ok:
             _sleep(_GAP)
         res = None
-        for attempt, wait in enumerate((0,) + _RETRY_WAITS):
-            if wait:
-                log(f"⏳ Dịch bị giới hạn tốc độ, chờ {wait}s rồi thử lại ({attempt}/{len(_RETRY_WAITS)})...")
-                _sleep(wait)
-            try:
-                res = _translate_one(text)
-                break
-            except Exception:  # noqa: BLE001
-                res = None
+        if google_ok:
+            for attempt, wait in enumerate((0,) + _RETRY_WAITS):
+                if wait:
+                    log(f"⏳ Dịch bị giới hạn tốc độ, chờ {wait}s rồi thử lại ({attempt}/{len(_RETRY_WAITS)})...")
+                    _sleep(wait)
+                try:
+                    res = _translate_one(text)
+                    break
+                except Exception:  # noqa: BLE001
+                    res = None
+            if not res:
+                google_ok = False
+                log("⚠️ Google Dịch đang chặn; các câu còn lại không thử Google nữa.")
         if not res:
             try:
                 res = _translate_backup(text)
@@ -172,7 +219,6 @@ def _translate_throttled(texts: list[str], log=print, on_item=None) -> list[str 
         if res and on_item:
             on_item(k, out[-1])
     return out
-
 
 
 def _translate(voices: list[str], log) -> list[str]:
